@@ -2,7 +2,7 @@
 
 It is annoying that companies always forget to implement their software for the most important operating system. Cisco even offers a native Linux AnyConnect client - but no Cisco Jabber Linux client. Unfortunately, the Windows binary doesn't perform well via Wine and I couldn't get any other Linux-native 3rd party softphone working with our Cisco telephone system, that's why we need another solution.
 
-Jabber4Linux is an inoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows. It is written in pure python. Warning: extremely experimental and unstable.
+Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows. It is written in pure python. Warning: extremely experimental and unstable.
 
 What it can:
 - server auto discovery via DNS SRV record _cisco-uds._tcp
