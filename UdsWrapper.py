@@ -49,7 +49,7 @@ class UdsWrapper():
         return None
 
     def basic_auth(self, username, password):
-        token = b64encode(f'{username}:{password}'.encode('utf-8')).decode("ascii")
+        token = b64encode(f'{username}:{password}'.encode('utf-8')).decode('ascii')
         return f'Basic {token}'
 
     def getUserDetails(self):
