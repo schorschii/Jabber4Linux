@@ -66,7 +66,7 @@ class AboutWindow(QtWidgets.QDialog):
 
         labelDescription = QtWidgets.QLabel(self)
         labelDescription.setText(
-            'Jabber4Linux is a inofficial Cisco Jabber port for Linux.'
+            'Jabber4Linux is a unofficial Cisco Jabber port for Linux.'
         )
         labelDescription.setStyleSheet('opacity:0.8')
         labelDescription.setFixedWidth(450)
