@@ -394,7 +394,13 @@ class SipHandler(threading.Thread):
     def generateSessionId(self):
         return ''.join(random.choice('0123456789abcdef') for _ in range(32))
     def generateTag(self):
-        return ''.join(random.choice('0123456789abcdef') for _ in range(24)) + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8))
+        return (''.join(random.choice('0123456789abcdef') for _ in range(24))
+            + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8)))
+    def generateCallId(self):
+        return (''.join(random.choice('0123456789abcdef') for _ in range(8))
+            + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8))
+            + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8))
+            + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8)))
 
     def getTimestamp(self):
         return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
@@ -597,7 +603,7 @@ class SipHandler(threading.Thread):
             f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: \"{self.sipSender}\" <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{targetSipNumber}@{self.serverFqdn}>\r\n" +
-            f"Call-ID: 00505687-43cd0004-00007da9-00002794@{clientIp}\r\n" +
+            f"Call-ID: {self.generateCallId()}@{clientIp}\r\n" +
             f"Max-Forwards: 70\r\n" +
             f"Session-ID: {sessionId};remote={remoteSessionId}\r\n" +
             f"Date: {self.getTimestamp()}\r\n" +
