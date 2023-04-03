@@ -145,7 +145,7 @@ class LoginWindow(QtWidgets.QDialog):
                     devices.append(deviceDetails)
             if len(devices) == 0: raise Exception('Unable to find a Jabber softphone device')
 
-            window = MainWindow({'user':userDetails, 'devices':devices})
+            window = MainWindow({'user':userDetails, 'devices':devices, 'config':{}})
             window.show()
 
             self.accept()
