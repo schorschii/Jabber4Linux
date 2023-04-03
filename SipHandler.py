@@ -13,9 +13,16 @@ from AudioSocket import InputAudioSocket, OutputAudioSocket
 
 
 class SipSocket(socket.socket):
+    debug = False
+
+    def __init__(self, debug=False, *args, **kwargs):
+        self.debug = debug
+        super(SipSocket, self).__init__(*args, **kwargs)
+
     def sendall(self, payload):
-        print('=== OUTGOING SIP MESSAGE ===')
-        print(payload.decode('utf-8', errors='replace'))
+        if(self.debug):
+            print('=== OUTGOING SIP MESSAGE ===')
+            print(payload.decode('utf-8', errors='replace'))
         socket.socket.sendall(self, payload)
 
 class SipHandler(threading.Thread):
@@ -74,7 +81,7 @@ class SipHandler(threading.Thread):
     def run(self, *args, **kwargs):
         try:
             # start SIP connection
-            self.sock = SipSocket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock = SipSocket(self.debug, socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.serverFqdn, self.serverPort))
 
             # start registration

@@ -9,13 +9,13 @@ from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
 
 from pathlib import Path
+import argparse
 import json
 import sys, os
 import traceback
 
 
 PRODUCT_VERSION = '0.1'
-DEBUG = True
 
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
@@ -29,7 +29,7 @@ def showErrorDialog(title, text, additionalText=''):
     msg.setText(text)
     msg.setDetailedText(additionalText)
     msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    retval = msg.exec_()
+    msg.exec()
 
 class AboutWindow(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
@@ -80,7 +80,10 @@ class AboutWindow(QtWidgets.QDialog):
         self.setWindowTitle('About')
 
 class LoginWindow(QtWidgets.QDialog):
-    def __init__(self, *args, **kwargs):
+    debug = False
+
+    def __init__(self, debug=False, *args, **kwargs):
+        self.debug = debug
         super(LoginWindow, self).__init__(*args, **kwargs)
 
         # window layout
@@ -136,7 +139,7 @@ class LoginWindow(QtWidgets.QDialog):
         try:
             # query necessary details from API
             # throws auth & connection errors, preventing to go to the main window on error
-            uds = UdsWrapper(self.txtUsername.text(), self.txtPassword.text(), self.txtServerName.text(), self.txtServerPort.text(), DEBUG)
+            uds = UdsWrapper(self.txtUsername.text(), self.txtPassword.text(), self.txtServerName.text(), self.txtServerPort.text(), debug=self.debug)
             userDetails = uds.getUserDetails()
             devices = []
             for device in uds.getDevices():
@@ -145,7 +148,7 @@ class LoginWindow(QtWidgets.QDialog):
                     devices.append(deviceDetails)
             if len(devices) == 0: raise Exception('Unable to find a Jabber softphone device')
 
-            window = MainWindow({'user':userDetails, 'devices':devices, 'config':{}})
+            window = MainWindow({'user':userDetails, 'devices':devices, 'config':{}}, debug=self.debug)
             window.show()
 
             self.accept()
@@ -240,14 +243,6 @@ class CallWindow(QtWidgets.QDialog):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def endCall(self):
-        try:
-            # todo: decline
-            self.reject()
-        except Exception as e:
-            print(traceback.format_exc())
-            showErrorDialog('Accept Error', str(e))
-
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     parentWidget = None
 
@@ -277,9 +272,11 @@ class MainWindow(QtWidgets.QMainWindow):
     user = None
     devices = None
     config = {} # misc settings
+    debug = False
 
     sipHandler = None
 
+    trayIcon = None
     ringtonePlayer = None
     incomingCallWindow = None
     outgoingCallWindow = None
@@ -290,7 +287,8 @@ class MainWindow(QtWidgets.QMainWindow):
     evtOutgoingCall = QtCore.pyqtSignal(int, str)
     evtCallClosed = QtCore.pyqtSignal()
 
-    def __init__(self, settings, *args, **kwargs):
+    def __init__(self, settings, debug=False, *args, **kwargs):
+        self.debug = debug
         self.user = settings['user']
         self.devices = settings['devices']
         self.config = settings['config']
@@ -357,8 +355,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.move(qr.topLeft())
 
         # tray icon
-        trayIcon = SystemTrayIcon(QtGui.QIcon('./phone.svg'), self)
-        trayIcon.show()
+        self.trayIcon = SystemTrayIcon(QtGui.QIcon(), self)
+        self.trayIcon.show()
 
         # start SIP registration
         self.initSipSession(0)
@@ -369,7 +367,7 @@ class MainWindow(QtWidgets.QMainWindow):
             'devices': self.devices,
             'config': self.config,
         })
-        if(not DEBUG):
+        if(not self.debug):
             event.ignore()
             self.hide()
 
@@ -380,12 +378,22 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = AboutWindow(self)
         dlg.exec_()
 
+    STATUS_OK = 0
+    STATUS_FAIL = 1
+    def setTrayIcon(self, status):
+        newIcon = None
+        if(status == 0):
+            newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone.svg')
+        else:
+            newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone-fail.svg')
+        self.trayIcon.setIcon(newIcon)
+
     def initSipSession(self, deviceIndex):
         device = self.devices[deviceIndex]
         self.sipHandler = SipHandler(
             device['callManagers'][0]['address'], device['callManagers'][0]['sipPort'],
             self.user['displayName'], device['number'], device['deviceName'], device['contact'],
-            DEBUG
+            debug=self.debug
         )
         self.sipHandler.evtRegistrationStatusChanged = self.evtRegistrationStatusChanged
         self.sipHandler.evtIncomingCall = self.evtIncomingCall
@@ -396,8 +404,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtRegistrationStatusChangedHandler(self, status, text):
         if(status == SipHandler.REGISTRATION_REGISTERED):
             self.lblRegistrationStatus.setText('OK!')
+            self.setTrayIcon(self.STATUS_OK)
         else:
             self.lblRegistrationStatus.setText('FAILED!')
+            self.setTrayIcon(self.STATUS_FAIL)
             showErrorDialog('Registration Error', text)
         self.lblRegistrationStatus.setToolTip(text)
 
@@ -494,14 +504,23 @@ def saveSettings(settings):
 
 # main entry point
 if __name__ == '__main__':
+    # parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--hidden', action='store_true', help='Start with tray icon only (for autostart)')
+    parser.add_argument('-v', '--debug', action='store_true', help='Print debug output (SIP packet contents etc.)')
+    args = parser.parse_args()
+
+    # init QT app
     app = QtWidgets.QApplication(sys.argv)
 
     settings = loadSettings(True)
     if settings != None and 'user' in settings and 'devices' in settings and len(settings['devices']) > 0:
-        window = MainWindow(settings)
-        window.show()
+        # directly start main window if login already done
+        window = MainWindow(settings, debug=args.debug)
+        if not args.hidden: window.show()
         sys.exit(app.exec_())
     else:
-        window = LoginWindow()
+        # show login window on first startup
+        window = LoginWindow(debug=args.debug)
         if window.exec_() == QtWidgets.QDialog.Accepted:
             sys.exit(app.exec_())
