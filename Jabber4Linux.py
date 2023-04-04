@@ -7,9 +7,11 @@ from PyQt5 import QtCore
 from UdsWrapper import UdsWrapper
 from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
+from Tools import niceTime
 
 from pathlib import Path
 from threading import Timer
+import time
 import argparse
 import json
 import sys, os
@@ -217,18 +219,25 @@ class OutgoingCallWindow(QtWidgets.QDialog):
 class CallWindow(QtWidgets.QDialog):
     isOutgoingCall = None
 
+    callTimeInterval = None
+    startTime = 0
+
     def __init__(self, remotePartyName, isOutgoingCall, *args, **kwargs):
         self.isOutgoingCall = isOutgoingCall
+        self.startTime = time.time()
         super(CallWindow, self).__init__(*args, **kwargs)
 
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.rejected.connect(self.accept) # accept means: close call (BYE)!
+        self.buttonBox.rejected.connect(self.cancelCall)
 
         self.layout = QtWidgets.QGridLayout(self)
 
         self.lblRemotePartyName = QtWidgets.QLabel(remotePartyName)
         self.layout.addWidget(self.lblRemotePartyName, 0, 0)
+
+        self.lblCallTimer = QtWidgets.QLabel(niceTime(0))
+        self.layout.addWidget(self.lblCallTimer, 1, 0)
 
         self.layout.addWidget(self.buttonBox, 3, 1, 1, 2)
         self.setLayout(self.layout)
@@ -243,6 +252,19 @@ class CallWindow(QtWidgets.QDialog):
         cp = QtWidgets.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
+        # schedule call timer update
+        self.refreshCallTimer()
+
+    def cancelCall(self):
+        self.callTimeInterval.cancel()
+        self.reject() # reject dialog result code means: close call (BYE)!
+
+    def refreshCallTimer(self):
+        self.lblCallTimer.setText(niceTime(time.time() - self.startTime))
+        self.callTimeInterval = Timer(1, self.refreshCallTimer)
+        self.callTimeInterval.daemon = True
+        self.callTimeInterval.start()
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     parentWidget = None
@@ -441,7 +463,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.closeIncomingCallWindow()
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.closeIncomingCallWindow()
-            self.callWindow = CallWindow('...', False) # todo: show SIP header 'Remote-Party' here
+            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['Remote-Party'] if 'Remote-Party' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
         else:
@@ -472,7 +494,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.outgoingCallWindow.show()
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
-            self.callWindow = CallWindow('...', True) # todo: show SIP header 'Remote-Party' here
+            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['Remote-Party'] if 'Remote-Party' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
         else:
@@ -491,7 +513,7 @@ class MainWindow(QtWidgets.QMainWindow):
             del self.ringtonePlayer
 
     def callWindowFinished(self, status):
-        if status == QtWidgets.QDialog.Accepted:
+        if status == QtWidgets.QDialog.Rejected:
             self.sipHandler.closeCall(self.callWindow.isOutgoingCall)
 
     def evtCallClosedHandler(self):
