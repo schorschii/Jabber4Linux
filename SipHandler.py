@@ -6,6 +6,7 @@ import random
 import time
 import pyaudio
 import threading
+import traceback
 import os, sys
 
 from Tools import ignoreStderr
@@ -43,6 +44,7 @@ class SipHandler(threading.Thread):
     debug = False
 
     currentCall = None
+    registrationExpiresSeconds = 0
 
     evtRegistrationStatusChanged = None
     evtIncomingCall = None
@@ -78,19 +80,11 @@ class SipHandler(threading.Thread):
         super(SipHandler, self).__init__(*args, **kwargs)
         self.daemon = True
 
+        # start SIP connection
+        self.sock = SipSocket(self.debug, socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.serverFqdn, self.serverPort))
+
     def run(self, *args, **kwargs):
-        try:
-            # start SIP connection
-            self.sock = SipSocket(self.debug, socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.serverFqdn, self.serverPort))
-
-            # start registration
-            senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '101 REGISTER', self.compileRegisterBody())
-            self.sock.sendall(senddata.encode('utf-8'))
-        except Exception as e:
-            self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))
-            return
-
         # wait for incoming messages and handle them when they received completely
         recvdata = ''
         while True:
@@ -132,6 +126,7 @@ class SipHandler(threading.Thread):
             if(headers['SIP/2.0'].startswith('100')):
                 pass
             elif(headers['SIP/2.0'].startswith('200')):
+                self.registrationExpiresSeconds = int(headers['Expires'])
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
             else:
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, headers['Warning'] if 'Warning' in headers else '')
@@ -267,6 +262,16 @@ class SipHandler(threading.Thread):
                 '1002 NOTIFY', '<?xml version="1.0" encoding="UTF-8"?><kpml-response xmlns="urn:ietf:params:xml:ns:kpml-response" version="1.0" code="487" text="Subscription Exp" suppressed="false" forced_flush="false" digits="" tag="Backspace OK"/>'
             )
             self.sock.sendall(senddata.encode('utf-8'))
+
+    def register(self):
+        try:
+            # send SIP REGISTER message
+            senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '101 REGISTER', self.compileRegisterBody())
+            self.sock.sendall(senddata.encode('utf-8'))
+        except Exception as e:
+            traceback.print_exc()
+            self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))
+            return
 
     def acceptCall(self):
         if(self.currentCall == None): return

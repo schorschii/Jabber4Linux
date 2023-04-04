@@ -9,6 +9,7 @@ from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
 
 from pathlib import Path
+from threading import Timer
 import argparse
 import json
 import sys, os
@@ -275,6 +276,7 @@ class MainWindow(QtWidgets.QMainWindow):
     debug = False
 
     sipHandler = None
+    registerRenevalInterval = None
 
     trayIcon = None
     ringtonePlayer = None
@@ -400,9 +402,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sipHandler.evtOutgoingCall = self.evtOutgoingCall
         self.sipHandler.evtCallClosed = self.evtCallClosed
         self.sipHandler.start()
+        self.registerSipSession()
+
+    def registerSipSession(self):
+        self.sipHandler.register()
 
     def evtRegistrationStatusChangedHandler(self, status, text):
         if(status == SipHandler.REGISTRATION_REGISTERED):
+            # schedule timer for registration renewal
+            if(self.sipHandler.registrationExpiresSeconds > 10):
+                self.registerRenevalInterval = Timer(self.sipHandler.registrationExpiresSeconds, self.registerSipSession)
+                self.registerRenevalInterval.daemon = True
+                self.registerRenevalInterval.start()
             self.lblRegistrationStatus.setText('OK!')
             self.setTrayIcon(self.STATUS_OK)
         else:
