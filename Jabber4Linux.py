@@ -326,6 +326,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sltPhone = QtWidgets.QComboBox()
         for device in self.devices:
             self.sltPhone.addItem(str(device['number']))
+            self.sltPhone.addItem(str(device['number']))
+        self.sltPhone.currentIndexChanged.connect(self.sltPhoneChanged)
         grid.addWidget(self.sltPhone, 0, 1)
         self.lblRegistrationStatus = QtWidgets.QLabel('...')
         grid.addWidget(self.lblRegistrationStatus, 0, 2)
@@ -384,7 +386,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.trayIcon.show()
 
         # start SIP registration
-        self.initSipSession(0)
+        self.initSipSession(self.sltPhone.currentIndex())
 
     def closeEvent(self, event):
         saveSettings({
@@ -414,6 +416,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone-fail.svg')
         self.trayIcon.setIcon(newIcon)
+
+    def sltPhoneChanged(self, sender):
+        self.initSipSession(self.sltPhone.currentIndex())
 
     def initSipSession(self, deviceIndex):
         try:
