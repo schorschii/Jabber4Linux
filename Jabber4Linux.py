@@ -392,7 +392,9 @@ class MainWindow(QtWidgets.QMainWindow):
             'devices': self.devices,
             'config': self.config,
         })
-        if(not self.debug):
+        if(self.debug):
+            sys.exit()
+        else:
             event.ignore()
             self.hide()
 
@@ -450,7 +452,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
-            callerText = self.sipHandler.currentCall['headers']['From_parsed']
+            callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
             diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
             self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
             try:
@@ -467,7 +469,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.closeIncomingCallWindow()
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.closeIncomingCallWindow()
-            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['Remote-Party'] if 'Remote-Party' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
+            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['From_parsed_text'] if 'From_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
         else:
@@ -492,13 +494,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sipHandler.call(numberStripped)
 
     def evtOutgoingCallHandler(self, status, text):
-        if(status == SipHandler.OUTGOING_CALL_RINGING):
+        if(status == SipHandler.OUTGOING_CALL_TRYING):
             self.outgoingCallWindow = OutgoingCallWindow(self.txtCall.text())
             self.outgoingCallWindow.finished.connect(self.outgoingCallWindowFinished)
             self.outgoingCallWindow.show()
+        elif(status == SipHandler.OUTGOING_CALL_RINGING):
+            self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
+            self.ringtonePlayer = AudioPlayer(
+                self.config['ringtone'] if 'ringtone' in self.config else os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav',
+                self.sipHandler.audio
+            )
+            self.ringtonePlayer.start()
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
-            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['Remote-Party'] if 'Remote-Party' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
+            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
         else:
@@ -508,6 +517,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def outgoingCallWindowFinished(self, status):
         if status == QtWidgets.QDialog.Accepted:
             self.sipHandler.cancelCall()
+        if(self.ringtonePlayer != None):
+            self.ringtonePlayer.stop()
+            del self.ringtonePlayer
 
     def closeOutgoingCallWindow(self):
         if(self.outgoingCallWindow != None):

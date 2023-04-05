@@ -7,6 +7,7 @@ import time
 import pyaudio
 import threading
 import traceback
+import re
 import os, sys
 
 from Tools import ignoreStderr
@@ -60,6 +61,7 @@ class SipHandler(threading.Thread):
     INCOMING_CALL_ACCEPTED = 3
     INCOMING_CALL_FAILED = 4
 
+    OUTGOING_CALL_TRYING = 0
     OUTGOING_CALL_RINGING = 1
     OUTGOING_CALL_ACCEPTED = 2
     OUTGOING_CALL_FAILED = 3
@@ -179,15 +181,20 @@ class SipHandler(threading.Thread):
                 self.audioOut.start()
 
         ### handle outgoing calls
-        if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq']):
+        if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
             if(headers['SIP/2.0'].startswith('100')):
-                pass
-            # 180=ringing (internal calls), 183=session progress (external landline calls)
-            elif((headers['SIP/2.0'].startswith('180') or headers['SIP/2.0'].startswith('183')) and 'Session-ID' in headers):
                 self.currentCall['headers'] = headers
-                self.currentCall['remoteSessionId'] = headers['Session-ID'].split(';')[0]
+                self.evtOutgoingCall.emit(self.OUTGOING_CALL_TRYING, '')
+            # 180=ringing (internal calls), 183=session progress (external landline calls)
+            elif(headers['SIP/2.0'].startswith('180') or headers['SIP/2.0'].startswith('183')):
+                self.currentCall['headers'] = headers
+                if('Remote-Party-ID' in headers):
+                    self.currentCall['headers']['To_parsed_text'] = self.partyHeaderToDisplayText(headers['Remote-Party-ID'])
+                else:
+                    self.currentCall['headers']['To_parsed_text'] = self.partyHeaderToDisplayText(headers['To'])
+                if('Session-ID' in headers): self.currentCall['remoteSessionId'] = headers['Session-ID'].split(';')[0]
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_RINGING, '')
-            elif(headers['SIP/2.0'].startswith('200') and 'Session-ID' in headers and headers['Session-ID'].split(';')[1].lstrip('remote=') == self.currentCall['mySessionId']):
+            elif(headers['SIP/2.0'].startswith('200')):
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_ACCEPTED, '')
                 # start outgoing audio stream
                 dstAddress = None
@@ -303,6 +310,7 @@ class SipHandler(threading.Thread):
 
     def call(self, number):
         self.currentCall = {
+            'callId': self.generateCallId(),
             'number': number,
             'remoteSessionId': self.EMPTY_SESSION_ID,
             'mySessionId': self.generateSessionId(),
@@ -316,7 +324,7 @@ class SipHandler(threading.Thread):
         # send SIP INVITE
         senddata = self.compileInviteHead(
             self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
-            self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number,
+            self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number, self.currentCall['callId'],
             self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
         )
         self.sock.sendall(senddata.encode('utf-8'))
@@ -371,9 +379,18 @@ class SipHandler(threading.Thread):
             counter += 1
         if 'From' in headers and 'sip:' in headers['From'] and '@' in headers['From']:
             headers['From_parsed'] = headers['From'].split('sip:')[1].split('@')[0]
+            headers['From_parsed_text'] = self.partyHeaderToDisplayText(headers['From'])
         if 'To' in headers and 'sip:' in headers['To'] and '@' in headers['To']:
             headers['To_parsed'] = headers['To'].split('sip:')[1].split('@')[0]
         return headers
+
+    def partyHeaderToDisplayText(self, rawHeader):
+        number = rawHeader.split('sip:')[1].split('@')[0]
+        quoteContent = re.findall('"([^"]*)"', rawHeader)
+        if(len(quoteContent) > 0):
+            return quoteContent[0] + ' ('+number+')'
+        else:
+            return number
 
     def parseSdpBody(self, body):
         attrs = {}
@@ -603,12 +620,12 @@ class SipHandler(threading.Thread):
             f"Recv-Info: x-cisco-conference\r\n" +
             f"Content-Length: 0\r\n" +
             f"\r\n")
-    def compileInviteHead(self, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber, body):
+    def compileInviteHead(self, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber, callId, body):
         return (f"INVITE sip:{targetSipNumber}@{self.serverFqdn};user=phone SIP/2.0\r\n" +
             f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: \"{self.sipSender}\" <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{targetSipNumber}@{self.serverFqdn}>\r\n" +
-            f"Call-ID: {self.generateCallId()}@{clientIp}\r\n" +
+            f"Call-ID: {callId}@{clientIp}\r\n" +
             f"Max-Forwards: 70\r\n" +
             f"Session-ID: {sessionId};remote={remoteSessionId}\r\n" +
             f"Date: {self.getTimestamp()}\r\n" +
