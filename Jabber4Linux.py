@@ -336,6 +336,7 @@ class MainWindow(QtWidgets.QMainWindow):
         grid.addWidget(self.txtCall, 1, 1)
         self.btnCall = QtWidgets.QPushButton('Call')
         self.btnCall.clicked.connect(self.clickCall)
+        self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
 
         widget = QtWidgets.QWidget(self)
@@ -548,6 +549,7 @@ if __name__ == '__main__':
 
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
 
     settings = loadSettings(True)
     if settings != None and 'user' in settings and 'devices' in settings and len(settings['devices']) > 0:
