@@ -5,7 +5,7 @@ It is annoying that companies always forget to implement their software for the 
 Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows. It is written in pure python. Warning: extremely experimental and unstable.
 
 What it can:
-- server auto discovery via DNS SRV record _cisco-uds._tcp
+- server auto discovery via DNS SRV record `_cisco-uds._tcp`
 - getting user's device information via Cisco UDS REST API
 - mimic Cisco Jabber SIP registration
 - initiate and accept calls
@@ -24,7 +24,9 @@ What (currently) doesn't:
 - video telephony
 - SRTP/ZRTP encrypted calls
 
-For debugging / reporting bugs, please start Jabber4Linux from Terminal and have a look and report the debug output.
+You can put Jabber4Linux in your autostart with parameter `--hidden` to start it only with the tray icon.
+
+For debugging / reporting bugs, please start Jabber4Linux from Terminal with parameter `--debug` and have a look and report the debug output.
 
 Stars & contributions welcome!
 
