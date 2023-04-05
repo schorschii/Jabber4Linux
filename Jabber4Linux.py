@@ -413,18 +413,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.trayIcon.setIcon(newIcon)
 
     def initSipSession(self, deviceIndex):
-        device = self.devices[deviceIndex]
-        self.sipHandler = SipHandler(
-            device['callManagers'][0]['address'], device['callManagers'][0]['sipPort'],
-            self.user['displayName'], device['number'], device['deviceName'], device['contact'],
-            debug=self.debug
-        )
-        self.sipHandler.evtRegistrationStatusChanged = self.evtRegistrationStatusChanged
-        self.sipHandler.evtIncomingCall = self.evtIncomingCall
-        self.sipHandler.evtOutgoingCall = self.evtOutgoingCall
-        self.sipHandler.evtCallClosed = self.evtCallClosed
-        self.sipHandler.start()
-        self.registerSipSession()
+        try:
+            device = self.devices[deviceIndex]
+            self.sipHandler = SipHandler(
+                device['callManagers'][0]['address'], device['callManagers'][0]['sipPort'],
+                self.user['displayName'], device['number'], device['deviceName'], device['contact'],
+                debug=self.debug
+            )
+            self.sipHandler.evtRegistrationStatusChanged = self.evtRegistrationStatusChanged
+            self.sipHandler.evtIncomingCall = self.evtIncomingCall
+            self.sipHandler.evtOutgoingCall = self.evtOutgoingCall
+            self.sipHandler.evtCallClosed = self.evtCallClosed
+            self.sipHandler.start()
+            self.registerSipSession()
+        except Exception as e:
+            self.evtRegistrationStatusChanged.emit(SipHandler.REGISTRATION_FAILED, str(e))
 
     def registerSipSession(self):
         self.sipHandler.register()
