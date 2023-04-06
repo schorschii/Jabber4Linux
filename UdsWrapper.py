@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import traceback
 import requests
 import urllib.parse
 from xml.dom import minidom, expatbuilder
@@ -144,7 +145,11 @@ class UdsWrapper():
                 try:
                     if(self.debug): print(id, item.firstChild.data, provisionResult.text)
                     document2 = expatbuilder.parseString(provisionResult.text, False).documentElement
+                    values['deviceSecurityMode'] = document2.getElementsByTagName('deviceSecurityMode')[0].firstChild.data
+                    values['transportLayerProtocol'] = document2.getElementsByTagName('transportLayerProtocol')[0].firstChild.data
+                    values['certHash'] = document2.getElementsByTagName('certHash')[0].firstChild.data
                 except Exception:
+                    if(self.debug): traceback.print_exc()
                     return None
 
                 for sl in document2.getElementsByTagName('sipLines'):

@@ -7,7 +7,7 @@ Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.
 What it can:
 - server auto discovery via DNS SRV record `_cisco-uds._tcp`
 - getting user's device information via Cisco UDS REST API
-- mimic Cisco Jabber SIP registration
+- mimic Cisco Jabber SIP(S) registration
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU
 
@@ -38,3 +38,4 @@ Stars & contributions welcome!
 - [RTCP](https://de.wikipedia.org/wiki/RealTime_Control_Protocol)
 - [SDP](https://de.wikipedia.org/wiki/Session_Description_Protocol)
 - [Cisco UDS](https://developer.cisco.com/docs/user-data-services-api-reference/#!overview/overview)
+- [CUCM Security Features](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2019/pdf/BRKCOL-3501.pdf)

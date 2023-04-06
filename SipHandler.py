@@ -7,6 +7,7 @@ import time
 import pyaudio
 import threading
 import traceback
+import ssl
 import re
 import os, sys
 
@@ -14,22 +15,10 @@ from Tools import ignoreStderr
 from AudioSocket import InputAudioSocket, OutputAudioSocket
 
 
-class SipSocket(socket.socket):
-    debug = False
-
-    def __init__(self, debug=False, *args, **kwargs):
-        self.debug = debug
-        super(SipSocket, self).__init__(*args, **kwargs)
-
-    def sendall(self, payload):
-        if(self.debug):
-            print('=== OUTGOING SIP MESSAGE ===')
-            print(payload.decode('utf-8', errors='replace'))
-        socket.socket.sendall(self, payload)
-
 class SipHandler(threading.Thread):
     serverFqdn = None
     serverPort = None
+    useTls = False
 
     sipSender = None
     sipNumber = None
@@ -66,9 +55,10 @@ class SipHandler(threading.Thread):
     OUTGOING_CALL_ACCEPTED = 2
     OUTGOING_CALL_FAILED = 3
 
-    def __init__(self, serverFqdn, serverPort, sipSender, sipNumber, deviceName, contactId, debug=False, *args, **kwargs):
+    def __init__(self, serverFqdn, serverPort, useTls, sipSender, sipNumber, deviceName, contactId, debug=False, *args, **kwargs):
         self.serverFqdn = serverFqdn
         self.serverPort = serverPort
+        self.useTls = useTls
         self.sipSender = sipSender
         self.sipNumber = sipNumber
         self.deviceName = deviceName
@@ -83,7 +73,14 @@ class SipHandler(threading.Thread):
         self.daemon = True
 
         # start SIP connection
-        self.sock = SipSocket(self.debug, socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if(self.useTls):
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.set_ciphers('DEFAULT')
+            context.load_cert_chain(certfile="experiments/siebert.crt", keyfile="experiments/siebert.key")
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            self.sock = context.wrap_socket(self.sock, server_hostname=serverFqdn)
         self.sock.connect((self.serverFqdn, self.serverPort))
 
     def run(self, *args, **kwargs):
@@ -121,9 +118,9 @@ class SipHandler(threading.Thread):
         ### handle registration
         #if('REFER' in headers): # what the hell does this REFER message from the SIP server mean? It does not seem necessary to answer it...
         #    senddata = self.compileReferAckHead(headers['Via'], headers['From'], headers['To'], headers['Call-ID'], headers['Contact'])
-        #    self.sock.sendall(senddata.encode('utf-8'))
+        #    self.sendSipMessage(senddata)
         #    senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '102 REGISTER', '')
-        #    self.sock.sendall(senddata.encode('utf-8'))
+        #    self.sendSipMessage(senddata)
         if('SIP/2.0' in headers and 'CSeq' in headers and 'REGISTER' in headers['CSeq']):
             if(headers['SIP/2.0'].startswith('100')):
                 pass
@@ -149,7 +146,7 @@ class SipHandler(threading.Thread):
                 self.currentCall['mySessionId'], self.currentCall['remoteSessionId'],
                 headers['INVITE'].split(' ')[0]
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
             self.evtIncomingCall.emit(self.INCOMING_CALL_RINGING)
 
             # ringing
@@ -158,7 +155,7 @@ class SipHandler(threading.Thread):
                 self.currentCall['mySessionId'], self.currentCall['remoteSessionId'],
                 headers['INVITE'].split(' ')[0]
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
             # wait for user to accept call via acceptCall()
 
         if(self.currentCall != None and 'CANCEL' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
@@ -216,7 +213,7 @@ class SipHandler(threading.Thread):
                     headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                     self.currentCall['mySessionId'], self.currentCall['remoteSessionId']
                 )
-                self.sock.sendall(senddata.encode('utf-8'))
+                self.sendSipMessage(senddata)
             else:
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_FAILED, headers['Warning'] if 'Warning' in headers else headers['SIP/2.0'])
 
@@ -232,7 +229,7 @@ class SipHandler(threading.Thread):
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.currentCall['mySessionId'], self.currentCall['remoteSessionId']
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
             self.evtCallClosed.emit()
 
         ### special: handle phone events ("kpml") in order to establish outgoing external (landline) calls
@@ -242,39 +239,45 @@ class SipHandler(threading.Thread):
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '101 SUBSCRIBE'
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
             senddata = self.compileSubscripeNotifyHead(
                 headers['Via'], headers['To'], headers['From'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '1000 NOTIFY', ''
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
         if(self.currentCall != None and 'SIP/2.0' in headers and headers['SIP/2.0'] == '200 OK' and headers['CSeq'] == '1000 NOTIFY'):
             senddata = self.compileSubscripeNotifyHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '1001 NOTIFY', '<?xml version="1.0" encoding="UTF-8"?><kpml-response xmlns="urn:ietf:params:xml:ns:kpml-response" version="1.0" code="423" text="Timer Expired" suppressed="false" forced_flush="false" digits="" tag="Backspace OK"/>'
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
         if(self.currentCall != None and 'SUBSCRIBE' in headers and headers['CSeq'] == '102 SUBSCRIBE'):
             senddata = self.compileSubscripeAckHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '102 SUBSCRIBE'
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
             senddata = self.compileSubscripeNotifyHead(
                 headers['Via'], headers['To'], headers['From'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '1002 NOTIFY', '<?xml version="1.0" encoding="UTF-8"?><kpml-response xmlns="urn:ietf:params:xml:ns:kpml-response" version="1.0" code="487" text="Subscription Exp" suppressed="false" forced_flush="false" digits="" tag="Backspace OK"/>'
             )
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
+
+    def sendSipMessage(self, message):
+        if(self.debug):
+            print('=== OUTGOING SIP MESSAGE ===')
+            print(message)
+        self.sock.sendall(message.encode('utf-8'))
 
     def register(self):
         try:
             # send SIP REGISTER message
             senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '101 REGISTER', self.compileRegisterBody())
-            self.sock.sendall(senddata.encode('utf-8'))
+            self.sendSipMessage(senddata)
         except Exception as e:
             traceback.print_exc()
             self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))
@@ -294,7 +297,7 @@ class SipHandler(threading.Thread):
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], headers['INVITE'].split(' ')[0],
             self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
         )
-        self.sock.sendall(senddata.encode('utf-8'))
+        self.sendSipMessage(senddata)
         self.evtIncomingCall.emit(self.INCOMING_CALL_ACCEPTED)
 
     def rejectCall(self):
@@ -306,7 +309,7 @@ class SipHandler(threading.Thread):
             headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], headers['INVITE'].split(' ')[0]
         )
-        self.sock.sendall(senddata.encode('utf-8'))
+        self.sendSipMessage(senddata)
 
     def call(self, number):
         self.currentCall = {
@@ -327,7 +330,7 @@ class SipHandler(threading.Thread):
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number, self.currentCall['callId'],
             self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
         )
-        self.sock.sendall(senddata.encode('utf-8'))
+        self.sendSipMessage(senddata)
 
     def cancelCall(self):
         if(self.currentCall == None): return
@@ -340,7 +343,7 @@ class SipHandler(threading.Thread):
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'],
             self.currentCall['number']
         )
-        self.sock.sendall(senddata.encode('utf-8'))
+        self.sendSipMessage(senddata)
 
     def closeCall(self, isOutgoingCall):
         if(self.currentCall == None): return
@@ -364,7 +367,7 @@ class SipHandler(threading.Thread):
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.currentCall['mySessionId'], self.currentCall['remoteSessionId']
             )
-        self.sock.sendall(senddata.encode('utf-8'))
+        self.sendSipMessage(senddata)
 
     def parseSipHead(self, head):
         headers = {}

@@ -321,11 +321,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # window layout
         grid = QtWidgets.QGridLayout()
 
-        self.lblPhone = QtWidgets.QLabel('Line') # todo: when changing the phone line, re-register SIP with the new line
+        self.lblPhone = QtWidgets.QLabel('Line')
         grid.addWidget(self.lblPhone, 0, 0)
         self.sltPhone = QtWidgets.QComboBox()
         for device in self.devices:
-            self.sltPhone.addItem(str(device['number']))
             self.sltPhone.addItem(str(device['number']))
         self.sltPhone.currentIndexChanged.connect(self.sltPhoneChanged)
         grid.addWidget(self.sltPhone, 0, 1)
@@ -383,6 +382,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # tray icon
         self.trayIcon = SystemTrayIcon(QtGui.QIcon(), self)
+        self.setTrayIcon(self.STATUS_FAIL)
         self.trayIcon.show()
 
         # start SIP registration
@@ -423,8 +423,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def initSipSession(self, deviceIndex):
         try:
             device = self.devices[deviceIndex]
+
+            port = device['callManagers'][0]['sipPort']
+            useTls = False
+            if(device['deviceSecurityMode'] == '2' or device['deviceSecurityMode'] == '3'):
+                port = device['callManagers'][0]['sipsPort']
+                useTls = True
+
             self.sipHandler = SipHandler(
-                device['callManagers'][0]['address'], device['callManagers'][0]['sipPort'],
+                device['callManagers'][0]['address'], port, useTls,
                 self.user['displayName'], device['number'], device['deviceName'], device['contact'],
                 debug=self.debug
             )
@@ -435,6 +442,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.sipHandler.start()
             self.registerSipSession()
         except Exception as e:
+            traceback.print_exc()
             self.evtRegistrationStatusChanged.emit(SipHandler.REGISTRATION_FAILED, str(e))
 
     def registerSipSession(self):
