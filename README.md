@@ -8,11 +8,11 @@ What it can:
 - server auto discovery via DNS SRV record `_cisco-uds._tcp`
 - getting user's device information via Cisco UDS REST API
 - mimic Cisco Jabber SIP(S) registration
+  - optional: force registration (disconnect an other client which is already active and holds the line)
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU
 
 What (currently) doesn't:
-- force registration (if another client is already active and holds the line)
 - intelligent input/output audio device (headset) selection
 - company phone book search
 - presence / instant messaging

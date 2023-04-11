@@ -420,7 +420,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def sltPhoneChanged(self, sender):
         self.initSipSession(self.sltPhone.currentIndex())
 
-    def initSipSession(self, deviceIndex):
+    def initSipSession(self, deviceIndex, force=False):
         try:
             device = self.devices[deviceIndex]
 
@@ -440,15 +440,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.sipHandler.evtOutgoingCall = self.evtOutgoingCall
             self.sipHandler.evtCallClosed = self.evtCallClosed
             self.sipHandler.start()
-            self.registerSipSession()
+            self.registerSipSession(force)
         except Exception as e:
             traceback.print_exc()
             self.evtRegistrationStatusChanged.emit(SipHandler.REGISTRATION_FAILED, str(e))
 
-    def registerSipSession(self):
-        self.sipHandler.register()
+    def registerSipSession(self, force=False):
+        self.sipHandler.register(force)
 
     def evtRegistrationStatusChangedHandler(self, status, text):
+        self.lblRegistrationStatus.setToolTip(text)
         if(status == SipHandler.REGISTRATION_REGISTERED):
             # schedule timer for registration renewal
             if(self.sipHandler.registrationExpiresSeconds > 10):
@@ -460,8 +461,18 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.lblRegistrationStatus.setText('FAILED!')
             self.setTrayIcon(self.STATUS_FAIL)
-            showErrorDialog('Registration Error', text)
-        self.lblRegistrationStatus.setToolTip(text)
+
+            # option to take over other sessions
+            if(status == SipHandler.REGISTRATION_ALREADY_ACTIVE):
+                msg = QtWidgets.QMessageBox()
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.setWindowTitle(QtWidgets.QApplication.translate('Jabber4Linux', 'Force Registration?'))
+                msg.setText(QtWidgets.QApplication.translate('Jabber4Linux', 'Your phone is already connected with another softphone instance. Do you want to disconnect the other softphone?'))
+                msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+                if(msg.exec_() == QtWidgets.QMessageBox.Ok):
+                    self.initSipSession(self.sltPhone.currentIndex(), True)
+            else:
+                showErrorDialog('Registration Error', text)
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):

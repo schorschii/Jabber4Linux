@@ -22,6 +22,7 @@ class SipHandler(threading.Thread):
 
     sipSender = None
     sipNumber = None
+    instanceId = None
     deviceName = None
     contactId = None
 
@@ -44,6 +45,7 @@ class SipHandler(threading.Thread):
     # status constants
     REGISTRATION_REGISTERED = 1
     REGISTRATION_FAILED = 2
+    REGISTRATION_ALREADY_ACTIVE = 3
 
     INCOMING_CALL_RINGING = 1
     INCOMING_CALL_CANCELED = 2
@@ -61,6 +63,7 @@ class SipHandler(threading.Thread):
         self.useTls = useTls
         self.sipSender = sipSender
         self.sipNumber = sipNumber
+        self.instanceId = self.generateCallId()
         self.deviceName = deviceName
         self.contactId = contactId
         self.debug = debug
@@ -110,7 +113,7 @@ class SipHandler(threading.Thread):
                     break
 
     def handleSipMessage(self, head, body):
-        if(self.debug): print('=== INCOMING SIP MESSAGE ===')
+        if(self.debug): print('=== INCOMING SIP MESSAGE '+('(encrypted) ' if self.useTls else '')+'===')
         if(self.debug): print(head+"\r\n\r\n"+body)
 
         headers = self.parseSipHead(head)
@@ -127,6 +130,8 @@ class SipHandler(threading.Thread):
             elif(headers['SIP/2.0'].startswith('200')):
                 self.registrationExpiresSeconds = int(headers['Expires'])
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
+            elif(headers['SIP/2.0'].startswith('403')):
+                self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, headers['Warning'] if 'Warning' in headers else '')
 
@@ -269,14 +274,18 @@ class SipHandler(threading.Thread):
 
     def sendSipMessage(self, message):
         if(self.debug):
-            print('=== OUTGOING SIP MESSAGE ===')
+            print('=== OUTGOING SIP MESSAGE '+('(encrypted) ' if self.useTls else '')+'===')
             print(message)
         self.sock.sendall(message.encode('utf-8'))
 
-    def register(self):
+    def register(self, force=False):
         try:
             # send SIP REGISTER message
-            senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '101 REGISTER', self.compileRegisterBody())
+            if(force):
+                pass
+                senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '102 REGISTER', True, self.compileRegisterBody())
+            else:
+                senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '101 REGISTER', False, self.compileRegisterBody())
             self.sendSipMessage(senddata)
         except Exception as e:
             traceback.print_exc()
@@ -430,19 +439,24 @@ class SipHandler(threading.Thread):
     def getTimestamp(self):
         return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
 
-    def compileRegisterHead(self, clientIp, clientPort, cSeq, body):
+    def compileRegisterHead(self, clientIp, clientPort, cSeq, forceRegistration, body):
+        instanceId = self.instanceId if forceRegistration else "00000000-0000-0000-0000-000000000000"
         return (f"REGISTER sip:{self.serverFqdn} SIP/2.0\r\n" +
             f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK000050d9\r\n" +
             f"From: <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{self.sipNumber}@{self.serverFqdn}>\r\n" +
-            f"Call-ID: 00000000-00000003-0000598b-000053fa@{clientIp}\r\n" +
+            f"Call-ID: {self.generateCallId()}@{clientIp}\r\n" +
             f"Max-Forwards: 70\r\n" +
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: {cSeq}\r\n" +
             f"User-Agent: Cisco-CSF\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+sip.instance=\"<urn:uuid:00000000-0000-0000-0000-000000000000>\";+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\";+u.sip!model.ccm.cisco.com=\"503\";video\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+sip.instance=\"<urn:uuid:{instanceId}>\";+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\";+u.sip!model.ccm.cisco.com=\"503\";video\r\n" +
             f"Supported: replaces,join,sdp-anat,norefersub,resource-priority,extended-refer,X-cisco-callinfo,X-cisco-serviceuri,X-cisco-escapecodes,X-cisco-service-control,X-cisco-srtp-fallback,X-cisco-monrec,X-cisco-config,X-cisco-sis-7.0.0,X-cisco-sessionpersist,X-cisco-xsi-8.5.1,X-cisco-graceful-reg,X-cisco-duplicate-reg\r\n" +
-            f"Reason: SIP;cause=200;text=\"cisco-alarm:25 Name=\"{self.deviceName}\" ActiveLoad=Jabber_for_Windows-14.1.3.57304 InactiveLoad=Jabber_for_Windows-14.1.3.57304 Last=initialized\r\n" +
+            (
+                f"Reason: SIP;cause=200;text=\"cisco-alarm:111 Name={self.deviceName} ActiveLoad=Jabber_for_Windows-14.1.3.57304 InactiveLoad=Jabber_for_Windows-14.1.3.57304 Last=Application-Requested-Destroy\"\r\n"
+                if forceRegistration else
+                f"Reason: SIP;cause=200;text=\"cisco-alarm:25 Name={self.deviceName} ActiveLoad=Jabber_for_Windows-14.1.3.57304 InactiveLoad=Jabber_for_Windows-14.1.3.57304 Last=initialized\"\r\n"
+            ) +
             f"Expires: 3600\r\n" +
             f"Content-Type: multipart/mixed; boundary=uniqueBoundary\r\n" +
             f"Mime-Version: 1.0\r\n" +
