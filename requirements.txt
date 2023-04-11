@@ -1,0 +1,4 @@
+dnspython
+requests
+PyQt5
+PyAudio # needs portaudio19-dev
