@@ -31,6 +31,7 @@ For debugging / reporting bugs, please start Jabber4Linux from Terminal with par
 Stars & contributions welcome!
 
 ## Installation
+For Ubuntu 22.04:
 ```
 apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev
 sudo -H pip3 install -r requirements.txt
