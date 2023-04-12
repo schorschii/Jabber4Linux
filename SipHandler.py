@@ -42,6 +42,9 @@ class SipHandler(threading.Thread):
     evtOutgoingCall = None
     evtCallClosed = None
 
+    inputDeviceName = None
+    outputDeviceName = None
+
     # status constants
     REGISTRATION_REGISTERED = 1
     REGISTRATION_FAILED = 2
@@ -179,7 +182,7 @@ class SipHandler(threading.Thread):
                     audioParams = key.split(' ')
                     dstPort = int(audioParams[1])
             if(dstAddress != None and dstPort != None):
-                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio)
+                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio, self.inputDeviceName)
                 self.audioOut.start()
 
         ### handle outgoing calls
@@ -210,7 +213,7 @@ class SipHandler(threading.Thread):
                         audioParams = key.split(' ')
                         dstPort = int(audioParams[1])
                 if(dstAddress != None and dstPort != None):
-                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio)
+                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio, self.inputDeviceName)
                     self.audioOut.start()
                 # send SIP ACK
                 senddata = self.compileInviteOkAckHead(
@@ -225,10 +228,12 @@ class SipHandler(threading.Thread):
         ### handle BYE of incoming and outgoing calls
         if(self.currentCall != None and 'BYE' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
             # stop audio streams
-            self.audioOut.stop()
-            self.audioIn.stop()
-            del self.audioOut
-            del self.audioIn
+            if(self.audioOut != None):
+                self.audioOut.stop()
+                self.audioOut = None
+            if(self.audioIn != None):
+                self.audioIn.stop()
+                self.audioIn = None
             # ack BYE
             senddata = self.compileByeOkHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
@@ -297,7 +302,7 @@ class SipHandler(threading.Thread):
         headers = self.currentCall['headers']
 
         # prepare for incoming audio stream
-        self.audioIn = InputAudioSocket(self.sock.getsockname()[0], self.audio)
+        self.audioIn = InputAudioSocket(self.sock.getsockname()[0], self.audio, self.outputDeviceName)
         self.audioIn.start()
 
         # ack SIP INVITE message
@@ -330,7 +335,7 @@ class SipHandler(threading.Thread):
         }
 
         # prepare for incoming audio stream
-        self.audioIn = InputAudioSocket(self.sock.getsockname()[0], self.audio)
+        self.audioIn = InputAudioSocket(self.sock.getsockname()[0], self.audio, self.outputDeviceName)
         self.audioIn.start()
 
         # send SIP INVITE
@@ -359,10 +364,12 @@ class SipHandler(threading.Thread):
         headers = self.currentCall['headers']
 
         # stop audio streams
-        self.audioOut.stop()
-        self.audioIn.stop()
-        del self.audioOut
-        del self.audioIn
+        if(self.audioOut != None):
+            self.audioOut.stop()
+            self.audioOut = None
+        if(self.audioIn != None):
+            self.audioIn.stop()
+            self.audioIn = None
 
         # send SIP BYE message
         if(isOutgoingCall):

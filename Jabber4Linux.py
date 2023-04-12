@@ -7,13 +7,16 @@ from PyQt5 import QtCore
 from UdsWrapper import UdsWrapper
 from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
-from Tools import niceTime
+from Tools import ignoreStderr, niceTime
 
+from functools import partial
 from pathlib import Path
 from threading import Timer
+import pyaudio
 import time
 import argparse
 import json
+import re
 import sys, os
 import traceback
 
@@ -151,7 +154,7 @@ class LoginWindow(QtWidgets.QDialog):
                     devices.append(deviceDetails)
             if len(devices) == 0: raise Exception('Unable to find a Jabber softphone device')
 
-            window = MainWindow({'user':userDetails, 'devices':devices, 'config':{}}, debug=self.debug)
+            window = MainWindow({'user':userDetails, 'devices':devices}, debug=self.debug)
             window.show()
 
             self.accept()
@@ -301,7 +304,6 @@ class MainWindow(QtWidgets.QMainWindow):
     registerRenevalInterval = None
 
     trayIcon = None
-    ringtonePlayer = None
     incomingCallWindow = None
     outgoingCallWindow = None
     callWindow = None
@@ -315,7 +317,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.debug = debug
         self.user = settings['user']
         self.devices = settings['devices']
-        self.config = settings['config']
+        self.ringtonePlayer = None
+        self.ringtoneOutputDeviceNames = settings.get('ringtone-devices', [])
+        self.inputDeviceName = settings.get('input-device', None)
+        self.outputDeviceName = settings.get('output-device', None)
+        self.ringtoneFile = settings.get('ringtone', os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav')
         super(MainWindow, self).__init__(*args, **kwargs)
 
         # window layout
@@ -361,6 +367,36 @@ class MainWindow(QtWidgets.QMainWindow):
         quitAction.triggered.connect(self.clickQuit)
         fileMenu.addAction(quitAction)
 
+        # Audio Menu
+        audioMenu = mainMenu.addMenu('&Audio')
+        inputDevicesMenu = audioMenu.addMenu('&Input Device')
+        outputDevicesMenu = audioMenu.addMenu('&Output Device')
+        ringtoneDevicesMenu = audioMenu.addMenu('&Ringtone Devices')
+        inputDevicesGroup = QtWidgets.QActionGroup(self)
+        inputDevicesGroup.setExclusive(True)
+        outputDevicesGroup = QtWidgets.QActionGroup(self)
+        outputDevicesGroup.setExclusive(True)
+
+        with ignoreStderr(): audio = pyaudio.PyAudio()
+        info = audio.get_host_api_info_by_index(0)
+        for i in range(0, info.get('deviceCount')):
+            if(audio.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
+                deviceName = re.sub('[\(\[].*?[\)\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
+                inputDeviceAction = inputDevicesGroup.addAction(QtWidgets.QAction(deviceName, self, checkable=True))
+                if(deviceName == self.inputDeviceName): inputDeviceAction.setChecked(True)
+                inputDeviceAction.triggered.connect(partial(self.clickSetInput, deviceName, inputDeviceAction))
+                inputDevicesMenu.addAction(inputDeviceAction)
+            if(audio.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
+                deviceName = re.sub('[\(\[].*?[\)\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
+                outputDeviceAction = outputDevicesGroup.addAction(QtWidgets.QAction(deviceName, outputDevicesGroup, checkable=True))
+                if(deviceName == self.outputDeviceName): outputDeviceAction.setChecked(True)
+                outputDeviceAction.triggered.connect(partial(self.clickSetOutput, deviceName, outputDeviceAction))
+                outputDevicesMenu.addAction(outputDeviceAction)
+                ringtoneDeviceAction = QtWidgets.QAction(deviceName, self, checkable=True)
+                if(deviceName in self.ringtoneOutputDeviceNames): ringtoneDeviceAction.setChecked(True)
+                ringtoneDeviceAction.triggered.connect(partial(self.clickSetRingtoneOutput, deviceName, ringtoneDeviceAction))
+                ringtoneDevicesMenu.addAction(ringtoneDeviceAction)
+
         # Help Menu
         helpMenu = mainMenu.addMenu('&Help')
 
@@ -392,7 +428,10 @@ class MainWindow(QtWidgets.QMainWindow):
         saveSettings({
             'user': self.user,
             'devices': self.devices,
-            'config': self.config,
+            'ringtone': self.ringtoneFile,
+            'ringtone-devices': self.ringtoneOutputDeviceNames,
+            'output-device': self.outputDeviceName,
+            'input-device': self.inputDeviceName,
         })
         if(self.debug):
             sys.exit()
@@ -406,6 +445,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def clickAboutDialog(self, e):
         dlg = AboutWindow(self)
         dlg.exec_()
+
+    def clickSetInput(self, deviceName, menuItem, e):
+        self.inputDeviceName = deviceName
+        self.sipHandler.inputDeviceName = deviceName
+    def clickSetOutput(self, deviceName, menuItem, e):
+        self.outputDeviceName = deviceName
+        self.sipHandler.outputDeviceName = deviceName
+    def clickSetRingtoneOutput(self, deviceName, menuItem, e):
+        if(menuItem.isChecked()):
+            if(deviceName not in self.ringtoneOutputDeviceNames):
+                self.ringtoneOutputDeviceNames.append(deviceName)
+        else:
+            self.ringtoneOutputDeviceNames.remove(deviceName)
 
     STATUS_OK = 0
     STATUS_FAIL = 1
@@ -435,6 +487,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.user['displayName'], device['number'], device['deviceName'], device['contact'],
                 debug=self.debug
             )
+            self.sipHandler.inputDeviceName = self.inputDeviceName
+            self.sipHandler.outputDeviceName = self.outputDeviceName
             self.sipHandler.evtRegistrationStatusChanged = self.evtRegistrationStatusChanged
             self.sipHandler.evtIncomingCall = self.evtIncomingCall
             self.sipHandler.evtOutgoingCall = self.evtOutgoingCall
@@ -481,8 +535,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
             try:
                 self.ringtonePlayer = AudioPlayer(
-                    self.config['ringtone'] if 'ringtone' in self.config else os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav',
-                    self.sipHandler.audio
+                    self.ringtoneFile,
+                    self.sipHandler.audio,
+                    self.ringtoneOutputDeviceNames
                 )
                 self.ringtonePlayer.start()
             except Exception as e:
@@ -500,18 +555,18 @@ class MainWindow(QtWidgets.QMainWindow):
             showErrorDialog('Incoming Call Failed', str(status))
 
     def incomingCallWindowFinished(self, status):
+        self.closeIncomingCallWindow()
         if status == QtWidgets.QDialog.Accepted:
             self.sipHandler.acceptCall()
         else:
             self.sipHandler.rejectCall()
-            self.closeIncomingCallWindow()
 
     def closeIncomingCallWindow(self):
-        if(self.incomingCallWindow != None):
-            self.incomingCallWindow.close()
         if(self.ringtonePlayer != None):
             self.ringtonePlayer.stop()
-            del self.ringtonePlayer
+            self.ringtonePlayer = None
+        if(self.incomingCallWindow != None):
+            self.incomingCallWindow.close()
 
     def clickCall(self, sender):
         numberStripped = self.txtCall.text().strip()
@@ -525,8 +580,9 @@ class MainWindow(QtWidgets.QMainWindow):
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.ringtonePlayer = AudioPlayer(
-                self.config['ringtone'] if 'ringtone' in self.config else os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav',
-                self.sipHandler.audio
+                self.ringtoneFile,
+                self.sipHandler.audio,
+                self.ringtoneOutputDeviceNames
             )
             self.ringtonePlayer.start()
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
@@ -539,18 +595,16 @@ class MainWindow(QtWidgets.QMainWindow):
             showErrorDialog('Outgoing Call Failed', str(text))
 
     def outgoingCallWindowFinished(self, status):
+        self.closeOutgoingCallWindow()
         if status == QtWidgets.QDialog.Accepted:
             self.sipHandler.cancelCall()
-        if(self.ringtonePlayer != None):
-            self.ringtonePlayer.stop()
-            del self.ringtonePlayer
 
     def closeOutgoingCallWindow(self):
         if(self.outgoingCallWindow != None):
             self.outgoingCallWindow.close()
         if(self.ringtonePlayer != None):
             self.ringtonePlayer.stop()
-            del self.ringtonePlayer
+            self.ringtonePlayer = None
 
     def callWindowFinished(self, status):
         if status == QtWidgets.QDialog.Rejected:

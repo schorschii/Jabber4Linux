@@ -11,9 +11,9 @@ What it can:
   - optional: force registration (disconnect an other client which is already active and holds the line)
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU
+- input/output audio device (headset) and ringtone devices selection
 
 What (currently) doesn't:
-- intelligent input/output audio device (headset) selection
 - company phone book search
 - presence / instant messaging
 - voice mail access
