@@ -30,6 +30,17 @@ For debugging / reporting bugs, please start Jabber4Linux from Terminal with par
 
 Stars & contributions welcome!
 
+## Installation
+Requirements via apt (Ubuntu 22.04)
+```
+apt install python3-requests python3-dnspython python3-pyqt5 python3-pyaudio
+```
+
+Requirements via pip(3)
+```
+pip3 install -r requirements.txt
+```
+
 ## Development Resources
 - Wireshark ftw
 - [SIP](https://de.wikipedia.org/wiki/Session_Initiation_Protocol)

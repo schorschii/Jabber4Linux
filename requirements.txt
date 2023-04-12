@@ -1,4 +1,4 @@
-dnspython
+dnspython>=2.0
 requests
 PyQt5
 PyAudio # needs portaudio19-dev
