@@ -21,6 +21,7 @@ class InputAudioSocket(threading.Thread):
         self.audioStream = None
         self.soundcardSampleRate = 8000 # PCMA and PCMU always uses 8khz
         self.sampleRateConverterState = None
+        self.outputSocketReference = None
         self.stopFlag = False
 
         # open RTP UDP socket for incoming audio data
@@ -63,10 +64,16 @@ class InputAudioSocket(threading.Thread):
                 if(len(datagram) < 12): continue # ignore invalid RTP packets
                 if(len(datagram) == 20): continue # ignore STUN binding request
 
+                rtpHead = datagram[:12]
                 if(payloadType == -1):
-                    rtpHead = datagram[:12]
                     payloadType = rtpHead[1] & 0b01111111
 
+                # for sender report RTCP packets
+                if(self.outputSocketReference != None):
+                    self.outputSocketReference.remoteSsrc = rtpHead[8:12]
+                    self.outputSocketReference.hsnr = rtpHead[2:4]
+
+                # decode payload
                 rtpBody = datagram[12:]
                 audioData = b''
                 if(payloadType == 0):
@@ -106,7 +113,9 @@ class OutputAudioSocket(threading.Thread):
         self.dstPortCtrl = None
         self.sock = None
         self.audioStream = None
-        self.ssrc = bytes([0xce, 0x4d, 0x91, 0x2f]) #os.urandom(4)
+        self.ssrc = os.urandom(4)
+        self.remoteSsrc = bytes([0x00, 0x00, 0x00, 0x00])
+        self.hsnr = bytes([0x00, 0x00])
         self.soundcardSampleRate = 8000 # PCMA and PCMU always uses 8khz
         self.sampleRateConverterState = None
         self.stopFlag = False
@@ -117,9 +126,9 @@ class OutputAudioSocket(threading.Thread):
         self.dstPortCtrl = dstPort + 1
         # setup RTP socket
         self.sock = sock
-        # setup RTCP socket
-        #self.sockCtrl = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        #self.sockCtrl.bind(('0.0.0.0', self.sock.getsockname()[1] + 1))
+        # setup RTCP socket (using RTP port + 1)
+        self.sockCtrl = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sockCtrl.bind(('0.0.0.0', self.sock.getsockname()[1] + 1))
         time.sleep(0.1)
 
         # find audio device
@@ -155,12 +164,12 @@ class OutputAudioSocket(threading.Thread):
             0x21, 0x12, 0xa4, 0x42, # message cookie
             0x4b, 0x65, 0x65, 0x70, 0x61, 0x20, 0x52, 0x54, 0x50, 0x00, 0x00, 0x00 # transaction ID
         ]), (self.dstAddress, self.dstPort))
-        #self.sockCtrl.sendto(bytes([
-        #    0x00, 0x11, # binding indication
-        #    0x00, 0x00, # message length
-        #    0x21, 0x12, 0xa4, 0x42, # message cookie
-        #    0x4b, 0x65, 0x65, 0x70, 0x61, 0x20, 0x52, 0x54, 0x50, 0x00, 0x00, 0x00 # transaction ID
-        #]), (self.dstAddress, self.dstPortCtrl))
+        self.sockCtrl.sendto(bytes([
+            0x00, 0x11, # binding indication
+            0x00, 0x00, # message length
+            0x21, 0x12, 0xa4, 0x42, # message cookie
+            0x4b, 0x65, 0x65, 0x70, 0x61, 0x20, 0x52, 0x54, 0x50, 0x00, 0x00, 0x00 # transaction ID
+        ]), (self.dstAddress, self.dstPortCtrl))
 
         try:
             timestamp = self.CHUNK
@@ -192,6 +201,7 @@ class OutputAudioSocket(threading.Thread):
             pass
 
         self.sock.close()
+        self.sockCtrl.close()
         self.audioStream.stop_stream()
         self.audioStream.close()
         print(f':: stopped outgoing UDP RTP stream')
@@ -200,8 +210,10 @@ class OutputAudioSocket(threading.Thread):
         self.stopFlag = True
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
+            self.sockCtrl.shutdown(socket.SHUT_RDWR)
         except OSError: pass
         self.sock.close()
+        self.sockCtrl.close()
         self.audioStream.stop_stream()
         self.audioStream.close()
 
