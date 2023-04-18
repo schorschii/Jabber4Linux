@@ -10,6 +10,7 @@ import traceback
 import ssl
 import re
 import os, sys
+from threading import Timer
 
 from Tools import ignoreStderr
 from AudioSocket import InputAudioSocket, OutputAudioSocket
@@ -35,7 +36,6 @@ class SipHandler(threading.Thread):
     debug = False
 
     currentCall = None
-    registrationExpiresSeconds = 0
 
     evtRegistrationStatusChanged = None
     evtIncomingCall = None
@@ -69,6 +69,7 @@ class SipHandler(threading.Thread):
         self.instanceId = self.generateCallId()
         self.deviceName = deviceName
         self.contactId = contactId
+        self.registerCallId = None
         self.debug = debug
 
         # initialize audio interface
@@ -131,8 +132,13 @@ class SipHandler(threading.Thread):
             if(headers['SIP/2.0'].startswith('100')):
                 pass
             elif(headers['SIP/2.0'].startswith('200')):
-                self.registrationExpiresSeconds = int(headers['Expires'])
+                registrationExpiresSeconds = int(headers['Expires'])
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
+                # schedule timer for registration renewal
+                if(registrationExpiresSeconds > 2):
+                    self.registerRenevalInterval = Timer(registrationExpiresSeconds/2, self.register)
+                    self.registerRenevalInterval.daemon = True
+                    self.registerRenevalInterval.start()
             elif(headers['SIP/2.0'].startswith('403')):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
@@ -225,7 +231,7 @@ class SipHandler(threading.Thread):
             else:
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_FAILED, headers['Warning'] if 'Warning' in headers else headers['SIP/2.0'])
 
-        ### handle BYE of incoming and outgoing calls
+        ### handle BYE from remote party (of incoming and outgoing calls)
         if(self.currentCall != None and 'BYE' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
             # stop audio streams
             if(self.audioOut != None):
@@ -447,12 +453,13 @@ class SipHandler(threading.Thread):
         return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
 
     def compileRegisterHead(self, clientIp, clientPort, cSeq, forceRegistration, body):
+        if(self.registerCallId == None): self.registerCallId = self.generateCallId()
         instanceId = self.instanceId if forceRegistration else "00000000-0000-0000-0000-000000000000"
         return (f"REGISTER sip:{self.serverFqdn} SIP/2.0\r\n" +
             f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK000050d9\r\n" +
             f"From: <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{self.sipNumber}@{self.serverFqdn}>\r\n" +
-            f"Call-ID: {self.generateCallId()}@{clientIp}\r\n" +
+            f"Call-ID: {self.registerCallId}@{clientIp}\r\n" +
             f"Max-Forwards: 70\r\n" +
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: {cSeq}\r\n" +

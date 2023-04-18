@@ -505,11 +505,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtRegistrationStatusChangedHandler(self, status, text):
         self.lblRegistrationStatus.setToolTip(text)
         if(status == SipHandler.REGISTRATION_REGISTERED):
-            # schedule timer for registration renewal
-            if(self.sipHandler.registrationExpiresSeconds > 10):
-                self.registerRenevalInterval = Timer(self.sipHandler.registrationExpiresSeconds, self.registerSipSession)
-                self.registerRenevalInterval.daemon = True
-                self.registerRenevalInterval.start()
             self.lblRegistrationStatus.setText('OK!')
             self.setTrayIcon(self.STATUS_OK)
         else:
