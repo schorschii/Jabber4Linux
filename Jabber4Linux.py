@@ -362,6 +362,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # File Menu
         fileMenu = mainMenu.addMenu('&File')
 
+        registerAction = QtWidgets.QAction('&Register', self)
+        registerAction.triggered.connect(self.clickRegister)
+        fileMenu.addAction(registerAction)
+
         quitAction = QtWidgets.QAction('&Quit', self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.triggered.connect(self.clickQuit)
@@ -468,6 +472,9 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone-fail.svg')
         self.trayIcon.setIcon(newIcon)
+
+    def clickRegister(self, e):
+        self.initSipSession(self.sltPhone.currentIndex())
 
     def sltPhoneChanged(self, sender):
         self.initSipSession(self.sltPhone.currentIndex())

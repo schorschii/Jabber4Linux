@@ -94,27 +94,32 @@ class SipHandler(threading.Thread):
         # wait for incoming messages and handle them when they received completely
         recvdata = ''
         while True:
-            newdata = self.sock.recv(4096)
-            recvdata += newdata.decode('utf-8', errors='replace')
+            try:
+                newdata = self.sock.recv(4096)
+                recvdata += newdata.decode('utf-8', errors='replace')
 
-            # received data can contain multiple SIP messages - handle all separately
-            while True:
-                if("\r\n\r\n" not in recvdata): break
-                splitter = recvdata.split("\r\n\r\n", 1)
-                header = splitter[0]
-                headerParsed = self.parseSipHead(header)
-                if('Content-Length' not in headerParsed): break
-                contentLength = int(headerParsed['Content-Length'])
-                if(contentLength == 0):
-                    self.handleSipMessage(header.strip(), '')
-                    recvdata = splitter[1]
-                elif(len(splitter[1]) >= contentLength):
-                    self.handleSipMessage(header.strip(), splitter[1][:contentLength])
-                    recvdata = splitter[1][contentLength:]
-                else:
-                    # message transmission is not completed yet, wait for next run
-                    if(self.debug): print(':: SIP message info: found '+str(len(splitter[1])) + ' bytes but expecting ' + str(contentLength)+', waiting for more...')
-                    break
+                # received data can contain multiple SIP messages - handle all separately
+                while True:
+                    if("\r\n\r\n" not in recvdata): break
+                    splitter = recvdata.split("\r\n\r\n", 1)
+                    header = splitter[0]
+                    headerParsed = self.parseSipHead(header)
+                    if('Content-Length' not in headerParsed): break
+                    contentLength = int(headerParsed['Content-Length'])
+                    if(contentLength == 0):
+                        self.handleSipMessage(header.strip(), '')
+                        recvdata = splitter[1]
+                    elif(len(splitter[1]) >= contentLength):
+                        self.handleSipMessage(header.strip(), splitter[1][:contentLength])
+                        recvdata = splitter[1][contentLength:]
+                    else:
+                        # message transmission is not completed yet, wait for next run
+                        if(self.debug): print(':: SIP message info: found '+str(len(splitter[1])) + ' bytes but expecting ' + str(contentLength)+', waiting for more...')
+                        break
+            except Exception as e:
+                traceback.print_exc()
+                self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))
+                break
 
     def handleSipMessage(self, head, body):
         if(self.debug): print('=== INCOMING SIP MESSAGE '+('(encrypted) ' if self.useTls else '')+'===')
