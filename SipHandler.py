@@ -144,6 +144,7 @@ class SipHandler(threading.Thread):
                     self.registerRenevalInterval = Timer(registrationExpiresSeconds/2, self.register)
                     self.registerRenevalInterval.daemon = True
                     self.registerRenevalInterval.start()
+                    self.sock.settimeout(registrationExpiresSeconds+5) # throw exception if we get no response
             elif(headers['SIP/2.0'].startswith('403')):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
