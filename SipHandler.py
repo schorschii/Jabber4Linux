@@ -417,23 +417,22 @@ class SipHandler(threading.Thread):
         return headers
 
     def partyHeaderToDisplayText(self, fromOrToHeader, remotePartyHeader):
+        name = None; number = None
+        # parse Remote-Party-ID header
         if(remotePartyHeader != None):
-            name = None; number = None
             parts = remotePartyHeader.split(';')
-            quoteContent = re.findall('"([^"]*)"', remotePartyHeader[0])
+            quoteContent = re.findall('"([^"]*)"', parts[0])
             if(len(quoteContent) > 0): name = quoteContent[0]
             for part in parts:
                 keyValue = part.split('=')
                 if(len(keyValue) >= 2):
                     if(keyValue[0] == 'x-cisco-number'): number = keyValue[1]
-            if(name != None and number != None): return name + ' ('+number+')', number
         # the From or To header does not necessarily contain the number, so it is only used as fallback
-        number = fromOrToHeader.split('sip:')[1].split('@')[0]
+        if(number == None): number = fromOrToHeader.split('sip:')[1].split('@')[0]
         quoteContent = re.findall('"([^"]*)"', fromOrToHeader)
-        if(len(quoteContent) > 0):
-            return quoteContent[0] + ' ('+number+')', number
-        else:
-            return number, number
+        if(len(quoteContent) > 0): name = quoteContent[0]
+        if(name == None): return fromOrToHeader.split('sip:')[1].split('@')[0], number # fallback
+        return name+' ('+number+')', number
 
     def parseSdpBody(self, body):
         attrs = {}

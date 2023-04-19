@@ -519,8 +519,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if('number' in historyItem and historyItem['number'].strip() != ''):
                 self.sipHandler.call(historyItem['number'])
 
-    def addCallToHistory(self, number, displayName, incoming):
-        self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'number':number, 'displayName':displayName, 'incoming':incoming})
+    def addCallToHistory(self, displayName, number, incoming):
+        self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'incoming':incoming})
         self.tblCalls.setData(self.callHistory)
 
     STATUS_OK = 0
