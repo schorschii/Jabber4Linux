@@ -84,6 +84,7 @@ class AboutWindow(QtWidgets.QDialog):
 
         self.setLayout(self.layout)
         self.setWindowTitle('About')
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
 class LoginWindow(QtWidgets.QDialog):
     debug = False
@@ -131,6 +132,7 @@ class LoginWindow(QtWidgets.QDialog):
         self.setWindowTitle('Jabber4Linux Login')
         self.resize(350, 150)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -185,6 +187,7 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Incoming Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -212,6 +215,7 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Outgoing Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -249,6 +253,7 @@ class CallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -366,6 +371,7 @@ class MainWindow(QtWidgets.QMainWindow):
         registerAction.triggered.connect(self.clickRegister)
         fileMenu.addAction(registerAction)
 
+        fileMenu.addSeparator()
         quitAction = QtWidgets.QAction('&Quit', self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.triggered.connect(self.clickQuit)
@@ -413,6 +419,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle('Jabber4Linux')
         self.resize(450, 250)
         self.txtCall.setFocus()
+        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
