@@ -205,10 +205,9 @@ class SipHandler(threading.Thread):
             # 180=ringing (internal calls), 183=session progress (external landline calls)
             elif(headers['SIP/2.0'].startswith('180') or headers['SIP/2.0'].startswith('183')):
                 self.currentCall['headers'] = headers
-                if('Remote-Party-ID' in headers):
-                    self.currentCall['headers']['To_parsed_text'] = self.partyHeaderToDisplayText(headers['Remote-Party-ID'])
-                else:
-                    self.currentCall['headers']['To_parsed_text'] = self.partyHeaderToDisplayText(headers['To'])
+                displayText, number = self.partyHeaderToDisplayText(headers['To'], headers['Remote-Party-ID'] if 'Remote-Party-ID' in headers else None)
+                self.currentCall['headers']['To_parsed_text'] = displayText
+                self.currentCall['headers']['To_parsed_number'] = number
                 if('Session-ID' in headers): self.currentCall['remoteSessionId'] = headers['Session-ID'].split(';')[0]
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_RINGING, '')
             elif(headers['SIP/2.0'].startswith('200')):
@@ -410,18 +409,31 @@ class SipHandler(threading.Thread):
             counter += 1
         if 'From' in headers and 'sip:' in headers['From'] and '@' in headers['From']:
             headers['From_parsed'] = headers['From'].split('sip:')[1].split('@')[0]
-            headers['From_parsed_text'] = self.partyHeaderToDisplayText(headers['From'])
+            displayText, number = self.partyHeaderToDisplayText(headers['From'], headers['Remote-Party-ID'] if 'Remote-Party-ID' in headers else None)
+            headers['From_parsed_text'] = displayText
+            headers['From_parsed_number'] = number
         if 'To' in headers and 'sip:' in headers['To'] and '@' in headers['To']:
             headers['To_parsed'] = headers['To'].split('sip:')[1].split('@')[0]
         return headers
 
-    def partyHeaderToDisplayText(self, rawHeader):
-        number = rawHeader.split('sip:')[1].split('@')[0]
-        quoteContent = re.findall('"([^"]*)"', rawHeader)
+    def partyHeaderToDisplayText(self, fromOrToHeader, remotePartyHeader):
+        if(remotePartyHeader != None):
+            name = None; number = None
+            parts = remotePartyHeader.split(';')
+            quoteContent = re.findall('"([^"]*)"', remotePartyHeader[0])
+            if(len(quoteContent) > 0): name = quoteContent[0]
+            for part in parts:
+                keyValue = part.split('=')
+                if(len(keyValue) >= 2):
+                    if(keyValue[0] == 'x-cisco-number'): number = keyValue[1]
+            if(name != None and number != None): return name + ' ('+number+')', number
+        # the From or To header does not necessarily contain the number, so it is only used as fallback
+        number = fromOrToHeader.split('sip:')[1].split('@')[0]
+        quoteContent = re.findall('"([^"]*)"', fromOrToHeader)
         if(len(quoteContent) > 0):
-            return quoteContent[0] + ' ('+number+')'
+            return quoteContent[0] + ' ('+number+')', number
         else:
-            return number
+            return number, number
 
     def parseSdpBody(self, body):
         attrs = {}
