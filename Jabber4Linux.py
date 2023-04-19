@@ -305,6 +305,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
     def __init__(self, *args):
         QtWidgets.QTableWidget.__init__(self, *args)
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
 
     def setData(self, calls):
@@ -455,7 +456,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # window properties
         self.setWindowTitle('Jabber4Linux')
-        self.resize(450, 250)
+        self.resize(460, 260)
         self.txtCall.setFocus()
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
