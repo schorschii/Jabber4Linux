@@ -189,6 +189,7 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Incoming Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
@@ -217,6 +218,7 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Outgoing Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
@@ -255,6 +257,7 @@ class CallWindow(QtWidgets.QDialog):
         self.setWindowTitle('Call')
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
