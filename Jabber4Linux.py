@@ -12,6 +12,7 @@ from Tools import ignoreStderr, niceTime
 from functools import partial
 from pathlib import Path
 from threading import Timer
+import datetime
 import pyaudio
 import time
 import argparse
@@ -25,6 +26,7 @@ PRODUCT_VERSION = '0.1'
 
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
+HISTORY_PATH = CFG_DIR+'/history.json'
 
 
 def showErrorDialog(title, text, additionalText=''):
@@ -299,6 +301,34 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def exit(self):
         QtCore.QCoreApplication.exit()
 
+class CallHistoryTable(QtWidgets.QTableWidget):
+    def __init__(self, *args):
+        QtWidgets.QTableWidget.__init__(self, *args)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
+
+    def setData(self, calls):
+        self.setRowCount(len(calls))
+        self.setColumnCount(3)
+
+        counter = 0
+        for call in calls:
+            newItem = QtWidgets.QTableWidgetItem('>' if call['incoming'] else '<')
+            self.setItem(counter, 0, newItem)
+            newItem = QtWidgets.QTableWidgetItem(call['displayName'])
+            self.setItem(counter, 1, newItem)
+            newItem = QtWidgets.QTableWidgetItem(call['date'])
+            self.setItem(counter, 2, newItem)
+            counter += 1
+
+        self.setHorizontalHeaderLabels([
+            '', # direction column (< or >)
+            QtWidgets.QApplication.translate('Jabber4Linux', 'Remote Party'),
+            QtWidgets.QApplication.translate('Jabber4Linux', 'Date')
+        ])
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+
 class MainWindow(QtWidgets.QMainWindow):
     user = None
     devices = None
@@ -328,6 +358,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.outputDeviceName = settings.get('output-device', None)
         self.ringtoneFile = settings.get('ringtone', os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav')
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.callHistory = loadCallHistory(True)
 
         # window layout
         grid = QtWidgets.QGridLayout()
@@ -350,6 +381,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btnCall.clicked.connect(self.clickCall)
         self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
+
+        self.lblHistory = QtWidgets.QLabel('History')
+        grid.addWidget(self.lblHistory, 2, 0)
+        self.tblCalls = CallHistoryTable()
+        self.tblCalls.setData(self.callHistory)
+        self.tblCalls.doubleClicked.connect(self.recallHistory)
+        grid.addWidget(self.tblCalls, 2, 1)
 
         widget = QtWidgets.QWidget(self)
         widget.setLayout(grid)
@@ -444,6 +482,7 @@ class MainWindow(QtWidgets.QMainWindow):
             'output-device': self.outputDeviceName,
             'input-device': self.inputDeviceName,
         })
+        saveCallHistory(self.callHistory)
         if(self.debug):
             sys.exit()
         else:
@@ -469,6 +508,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ringtoneOutputDeviceNames.append(deviceName)
         else:
             self.ringtoneOutputDeviceNames.remove(deviceName)
+
+    def recallHistory(self, e):
+        for row in sorted(self.tblCalls.selectionModel().selectedRows()):
+            historyItem = self.callHistory[row.row()]
+            if('number' in historyItem and historyItem['number'].strip() != ''):
+                self.sipHandler.call(historyItem['number'])
+
+    def addCallToHistory(self, number, displayName, incoming):
+        self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'number':number, 'displayName':displayName, 'incoming':incoming})
+        self.tblCalls.setData(self.callHistory)
 
     STATUS_OK = 0
     STATUS_FAIL = 1
@@ -538,6 +587,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 showErrorDialog('Registration Error', text)
 
     def evtIncomingCallHandler(self, status):
+        self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_number'], self.sipHandler.currentCall['headers']['From_parsed_text'], True)
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
             diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
@@ -583,7 +633,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def evtOutgoingCallHandler(self, status, text):
         if(status == SipHandler.OUTGOING_CALL_TRYING):
-            self.outgoingCallWindow = OutgoingCallWindow(self.txtCall.text())
+            self.outgoingCallWindow = OutgoingCallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.outgoingCallWindow.finished.connect(self.outgoingCallWindowFinished)
             self.outgoingCallWindow.show()
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
@@ -594,6 +644,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ringtoneOutputDeviceNames
             )
             self.ringtonePlayer.start()
+            self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], False)
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
@@ -629,7 +680,6 @@ def loadSettings(suppressError=False):
             return json.load(f)
     except Exception as e:
         if(not suppressError): showErrorDialog('Error loading settings file', str(e))
-
 def saveSettings(settings):
     try:
         if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
@@ -637,6 +687,22 @@ def saveSettings(settings):
             json.dump(settings, json_file, indent=4)
     except Exception as e:
         showErrorDialog('Error saving settings file', str(e))
+
+def loadCallHistory(suppressError=False):
+    try:
+        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
+        with open(HISTORY_PATH) as f:
+            return json.load(f)
+    except Exception as e:
+        if(not suppressError): showErrorDialog('Error loading history file', str(e))
+        return []
+def saveCallHistory(settings):
+    try:
+        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
+        with open(HISTORY_PATH, 'w') as json_file:
+            json.dump(settings, json_file, indent=4)
+    except Exception as e:
+        showErrorDialog('Error saving history file', str(e))
 
 # main entry point
 if __name__ == '__main__':
