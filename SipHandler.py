@@ -183,6 +183,7 @@ class SipHandler(threading.Thread):
             # start outgoing audio stream
             dstAddress = None
             dstPort = None
+            payloadType = 0x00 # PCMU default
             sdpParsed = self.parseSdpBody(body)
             if('c' in sdpParsed):
                 connectionParams = sdpParsed['c'].split(' ')
@@ -191,8 +192,9 @@ class SipHandler(threading.Thread):
                 if(key.startswith('audio ')):
                     audioParams = key.split(' ')
                     dstPort = int(audioParams[1])
+                    if(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
             if(dstAddress != None and dstPort != None):
-                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio, self.inputDeviceName)
+                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName)
                 self.audioOut.start()
 
         ### handle outgoing calls
@@ -213,6 +215,7 @@ class SipHandler(threading.Thread):
                 # start outgoing audio stream
                 dstAddress = None
                 dstPort = None
+                payloadType = 0x00 # PCMU default
                 sdpParsed = self.parseSdpBody(body)
                 if('c' in sdpParsed):
                     connectionParams = sdpParsed['c'].split(' ')
@@ -221,8 +224,9 @@ class SipHandler(threading.Thread):
                     if(key.startswith('audio ')):
                         audioParams = key.split(' ')
                         dstPort = int(audioParams[1])
+                        if(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
                 if(dstAddress != None and dstPort != None):
-                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, self.audio, self.inputDeviceName)
+                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName)
                     self.audioOut.start()
                 # send SIP ACK
                 senddata = self.compileInviteOkAckHead(

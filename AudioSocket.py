@@ -107,12 +107,13 @@ class InputAudioSocket(threading.Thread):
 class OutputAudioSocket(threading.Thread):
     CHUNK = 160
 
-    def __init__(self, sock, dstAddress, dstPort, audio, deviceName=None, *args, **kwargs):
+    def __init__(self, sock, dstAddress, dstPort, payloadType, audio, deviceName=None, *args, **kwargs):
         self.dstAddress = None
         self.dstPort = None
         self.dstPortCtrl = None
         self.sock = None
         self.audioStream = None
+        self.payloadType = payloadType
         self.ssrc = os.urandom(4)
         self.remoteSsrc = bytes([0x00, 0x00, 0x00, 0x00])
         self.hsnr = bytes([0x00, 0x00])
@@ -181,7 +182,7 @@ class OutputAudioSocket(threading.Thread):
                 timestampBytes = struct.pack('>I', timestamp)
                 rtpHead = bytes([
                     0x80, # RTP version = 2; no padding; no extension
-                    0x08 + marker, # payload type 8 = PCMA (a-law); marker bit
+                    self.payloadType + marker, # payload type with marker bit
                     sequenceNumberBytes[0], sequenceNumberBytes[1],
                     timestampBytes[0], timestampBytes[1], timestampBytes[2], timestampBytes[3],
                     self.ssrc[0], self.ssrc[1], self.ssrc[2], self.ssrc[3],
@@ -190,7 +191,10 @@ class OutputAudioSocket(threading.Thread):
                 if(self.soundcardSampleRate != 8000): # PCMA and PCMU always uses 8khz
                     audioData, state = audioop.ratecv(audioData, 2, 1, self.soundcardSampleRate, 8000, self.sampleRateConverterState)
                     self.sampleRateConverterState = state
-                rtpBody = audioop.lin2alaw(audioData, 2)
+                if(self.payloadType == 0x08):
+                    rtpBody = audioop.lin2alaw(audioData, 2)
+                else:
+                    rtpBody = audioop.lin2ulaw(audioData, 2)
                 self.sock.sendto(rtpHead+rtpBody, (self.dstAddress, self.dstPort))
 
                 marker = 0
