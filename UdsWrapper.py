@@ -20,7 +20,7 @@ class UdsWrapper():
 
     debug = False
 
-    def __init__(self, username, password, serverName=None, serverPort=None, debug=False):
+    def __init__(self, username=None, password=None, serverName=None, serverPort=None, debug=False):
         self.username = username
         self.password = password
         self.debug = debug
@@ -170,3 +170,33 @@ class UdsWrapper():
                                     })
                 break
             return values
+
+    def queryPhoneBook(self, name=None):
+        users = []
+        if(name == None):
+            searchUrl = f'https://{self.serverName}:{self.serverPort}/cucm-uds/users'
+        else:
+            searchUrl = f'https://{self.serverName}:{self.serverPort}/cucm-uds/users?max=10&start=0&name={urllib.parse.quote(name)}'
+        with requests.get(searchUrl) as result:
+            result.raise_for_status()
+            document = minidom.parseString(result.text).documentElement
+            for user in document.getElementsByTagName('user'):
+                users.append({
+                    'id': user.getElementsByTagName('id')[0].firstChild.data if user.getElementsByTagName('id')[0].firstChild else '',
+                    'userName': user.getElementsByTagName('userName')[0].firstChild.data if user.getElementsByTagName('userName')[0].firstChild else '',
+                    'firstName': user.getElementsByTagName('firstName')[0].firstChild.data if user.getElementsByTagName('firstName')[0].firstChild else '',
+                    'lastName': user.getElementsByTagName('lastName')[0].firstChild.data if user.getElementsByTagName('lastName')[0].firstChild else '',
+                    'middleName': user.getElementsByTagName('middleName')[0].firstChild.data if user.getElementsByTagName('middleName')[0].firstChild else '',
+                    'displayName': user.getElementsByTagName('displayName')[0].firstChild.data if user.getElementsByTagName('displayName')[0].firstChild else '',
+                    'phoneNumber': user.getElementsByTagName('phoneNumber')[0].firstChild.data if user.getElementsByTagName('phoneNumber')[0].firstChild else '',
+                    'homeNumber': user.getElementsByTagName('homeNumber')[0].firstChild.data if user.getElementsByTagName('homeNumber')[0].firstChild else '',
+                    'mobileNumber': user.getElementsByTagName('mobileNumber')[0].firstChild.data if user.getElementsByTagName('mobileNumber')[0].firstChild else '',
+                    'email': user.getElementsByTagName('email')[0].firstChild.data if user.getElementsByTagName('email')[0].firstChild else '',
+                    'directoryUri': user.getElementsByTagName('directoryUri')[0].firstChild.data if user.getElementsByTagName('directoryUri')[0].firstChild else '',
+                    'msUri': user.getElementsByTagName('msUri')[0].firstChild.data if user.getElementsByTagName('msUri')[0].firstChild else '',
+                    'department': user.getElementsByTagName('department')[0].firstChild.data if user.getElementsByTagName('department')[0].firstChild else '',
+                    'manager': user.getElementsByTagName('manager')[0].firstChild.data if user.getElementsByTagName('manager')[0].firstChild else '',
+                    'title': user.getElementsByTagName('title')[0].firstChild.data if user.getElementsByTagName('title')[0].firstChild else '',
+                    'pager': user.getElementsByTagName('pager')[0].firstChild.data if user.getElementsByTagName('pager')[0].firstChild else '',
+                })
+            return users

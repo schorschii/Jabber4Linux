@@ -333,6 +333,44 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
 
+class PhoneBookSearchModel(QtGui.QStandardItemModel):
+    def __init__(self, parent=None):
+        super(PhoneBookSearchModel, self).__init__(parent)
+        self.uds = UdsWrapper()
+    @QtCore.pyqtSlot(str)
+    def search(self, text):
+        self.clear()
+        if text:
+            try:
+                for user in self.uds.queryPhoneBook(text):
+                    if(user['phoneNumber'] != ''):
+                        item = QtGui.QStandardItem(user['displayName']+' ('+user['phoneNumber']+')')
+                        item.number = user['phoneNumber']
+                        self.appendRow(item)
+                    if(user['homeNumber'] != ''):
+                        item = QtGui.QStandardItem(user['displayName']+' ('+user['homeNumber']+')')
+                        item.number = user['homeNumber']
+                        self.appendRow(item)
+                    if(user['mobileNumber'] != ''):
+                        item = QtGui.QStandardItem(user['displayName']+' ('+user['mobileNumber']+')')
+                        item.number = user['mobileNumber']
+                        self.appendRow(item)
+            except Exception as e:
+                print(e)
+
+class PhoneBookSearchCompleter(QtWidgets.QCompleter):
+    def __init__(self, mainWindow, *args, **kwargs):
+        self.mainWindow = mainWindow
+        super(PhoneBookSearchCompleter, self).__init__(*args, **kwargs)
+        #self.activated[QtCore.QModelIndex].connect(self.applySuggestion)
+    def splitPath(self, path):
+        self.model().search(path)
+        return super(PhoneBookSearchCompleter, self).splitPath(path)
+    def pathFromIndex(self, index):
+        return self.model().item(index.row(), 0).number
+    #def applySuggestion(self, index):
+    #    self.mainWindow.txtCall.setText(self.model().item(index.row(), 0).number)
+
 class MainWindow(QtWidgets.QMainWindow):
     user = None
     devices = None
@@ -402,6 +440,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.evtIncomingCall.connect(self.evtIncomingCallHandler)
         self.evtOutgoingCall.connect(self.evtOutgoingCallHandler)
         self.evtCallClosed.connect(self.evtCallClosedHandler)
+
+        # init QCompleter for phone book search
+        self.phoneBookSearchCompleterModel = PhoneBookSearchModel(self)
+        phoneBookSearchCompleter = PhoneBookSearchCompleter(self, caseSensitivity=QtCore.Qt.CaseInsensitive)
+        phoneBookSearchCompleter.setModel(self.phoneBookSearchCompleterModel)
+        self.txtCall.setCompleter(phoneBookSearchCompleter)
 
         # Menubar
         mainMenu = self.menuBar()
@@ -591,7 +635,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 showErrorDialog('Registration Error', text)
 
     def evtIncomingCallHandler(self, status):
-        self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_number'], self.sipHandler.currentCall['headers']['From_parsed_text'], True)
+        self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], True)
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
             diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''

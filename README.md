@@ -12,9 +12,9 @@ What it can:
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU
 - input/output audio device (headset) and ringtone devices selection
+- company phone book search
 
 What (currently) doesn't:
-- company phone book search
 - presence / instant messaging
 - voice mail access
 - conference features

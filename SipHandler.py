@@ -129,7 +129,7 @@ class SipHandler(threading.Thread):
         headers = self.parseSipHead(head)
 
         ### handle registration
-        if('REFER' in headers):
+        #if('REFER' in headers):
             # what the hell does this REFER message from the SIP server mean?
             # it does not seem necessary to answer it...
             #senddata = self.compileReferAckHead(headers['Via'], headers['From'], headers['To'], headers['Call-ID'], headers['Contact'])
