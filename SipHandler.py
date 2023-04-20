@@ -84,6 +84,7 @@ class SipHandler(threading.Thread):
         if(self.useTls):
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.set_ciphers('DEFAULT')
+            #context.maximum_version = ssl.TLSVersion.TLSv1_2
             context.load_cert_chain(certfile="experiments/siebert.crt", keyfile="experiments/siebert.key")
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
@@ -128,23 +129,20 @@ class SipHandler(threading.Thread):
         headers = self.parseSipHead(head)
 
         ### handle registration
-        #if('REFER' in headers): # what the hell does this REFER message from the SIP server mean? It does not seem necessary to answer it...
-        #    senddata = self.compileReferAckHead(headers['Via'], headers['From'], headers['To'], headers['Call-ID'], headers['Contact'])
-        #    self.sendSipMessage(senddata)
-        #    senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '102 REGISTER', '')
-        #    self.sendSipMessage(senddata)
+        if('REFER' in headers):
+            # what the hell does this REFER message from the SIP server mean?
+            # it does not seem necessary to answer it...
+            #senddata = self.compileReferAckHead(headers['Via'], headers['From'], headers['To'], headers['Call-ID'], headers['Contact'])
+            #self.sendSipMessage(senddata)
+            #senddata = self.compileRegisterHead(self.sock.getsockname()[0], str(self.sock.getsockname()[1]), '102 REGISTER', False, self.compileRegisterBody())
+            #self.sendSipMessage(senddata)
+
         if('SIP/2.0' in headers and 'CSeq' in headers and 'REGISTER' in headers['CSeq']):
             if(headers['SIP/2.0'].startswith('100')):
                 pass
             elif(headers['SIP/2.0'].startswith('200')):
-                registrationExpiresSeconds = int(headers['Expires'])
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
-                # schedule timer for registration renewal
-                if(registrationExpiresSeconds > 2):
-                    self.registerRenevalInterval = Timer(registrationExpiresSeconds/2, self.register)
-                    self.registerRenevalInterval.daemon = True
-                    self.registerRenevalInterval.start()
-                    self.sock.settimeout(registrationExpiresSeconds+5) # throw exception if we get no response
+                self.scheduleRegistrationRenewalTimer(int(headers['Expires']))
             elif(headers['SIP/2.0'].startswith('403')):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
@@ -293,6 +291,14 @@ class SipHandler(threading.Thread):
             print('=== OUTGOING SIP MESSAGE '+('(encrypted) ' if self.useTls else '')+'===')
             print(message)
         self.sock.sendall(message.encode('utf-8'))
+
+    def scheduleRegistrationRenewalTimer(self, registrationExpiresSeconds):
+        # schedule timer for registration renewal
+        if(registrationExpiresSeconds > 2):
+            self.registerRenevalInterval = Timer(registrationExpiresSeconds/2, self.register)
+            self.registerRenevalInterval.daemon = True
+            self.registerRenevalInterval.start()
+            self.sock.settimeout(registrationExpiresSeconds+5) # throw exception if we get no response in time
 
     def register(self, force=False):
         try:
@@ -469,6 +475,10 @@ class SipHandler(threading.Thread):
     def getTimestamp(self):
         return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
 
+    def getTransport(self):
+        if(self.useTls): return 'tls'
+        else: return 'tcp'
+
     def compileRegisterHead(self, clientIp, clientPort, cSeq, forceRegistration, body):
         if(self.registerCallId == None): self.registerCallId = self.generateCallId()
         instanceId = self.instanceId if forceRegistration else "00000000-0000-0000-0000-000000000000"
@@ -481,7 +491,7 @@ class SipHandler(threading.Thread):
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: {cSeq}\r\n" +
             f"User-Agent: Cisco-CSF\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+sip.instance=\"<urn:uuid:{instanceId}>\";+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\";+u.sip!model.ccm.cisco.com=\"503\";video\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+sip.instance=\"<urn:uuid:{instanceId}>\";+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\";+u.sip!model.ccm.cisco.com=\"503\";video\r\n" +
             f"Supported: replaces,join,sdp-anat,norefersub,resource-priority,extended-refer,X-cisco-callinfo,X-cisco-serviceuri,X-cisco-escapecodes,X-cisco-service-control,X-cisco-srtp-fallback,X-cisco-monrec,X-cisco-config,X-cisco-sis-7.0.0,X-cisco-sessionpersist,X-cisco-xsi-8.5.1,X-cisco-graceful-reg,X-cisco-duplicate-reg\r\n" +
             (
                 f"Reason: SIP;cause=200;text=\"cisco-alarm:111 Name={self.deviceName} ActiveLoad=Jabber_for_Windows-14.1.3.57304 InactiveLoad=Jabber_for_Windows-14.1.3.57304 Last=Application-Requested-Destroy\"\r\n"
@@ -653,7 +663,7 @@ class SipHandler(threading.Thread):
             f"Content-Length: {str(len(body))}\r\n" +
             f"\r\n" + body)
     def compileInviteOkAckHead(self, targetSipNumber, via, fro, to, callId, sessionId, remoteSessionId):
-        return (f"ACK sip:{targetSipNumber}@{self.serverFqdn};transport=tcp SIP/2.0\r\n" +
+        return (f"ACK sip:{targetSipNumber}@{self.serverFqdn};transport={self.getTransport()} SIP/2.0\r\n" +
             f"Via: {via}\r\n" +
             f"From: {fro}\r\n" +
             f"To: {to}\r\n" +
@@ -679,7 +689,7 @@ class SipHandler(threading.Thread):
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: 101 INVITE\r\n" +
             f"User-Agent: Cisco-CSF\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
             f"Expires: 180\r\n" +
             f"Accept: application/sdp\r\n" +
             f"Allow: ACK,BYE,CANCEL,INVITE,NOTIFY,OPTIONS,REFER,REGISTER,UPDATE,SUBSCRIBE,INFO\r\n" +
@@ -707,7 +717,7 @@ class SipHandler(threading.Thread):
             f"\r\n")
     def compileByeHeadOutgoing(self, fro, to, callId, clientIp, clientPort, sessionId, remoteSessionId):
         byeTo = fro.split('<')[1].split('>')[0]
-        return (f"BYE {byeTo};transport=tcp SIP/2.0\r\n" +
+        return (f"BYE {byeTo};transport={self.getTransport()} SIP/2.0\r\n" +
             f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: {fro}\r\n" +
             f"To: {to}\r\n" +
@@ -721,7 +731,7 @@ class SipHandler(threading.Thread):
             f"\r\n")
     def compileByeHeadIncoming(self, via, fro, to, callId, sessionId, remoteSessionId):
         byeTo = fro.split('<')[1].split('>')[0]
-        return (f"BYE {byeTo};transport=tcp SIP/2.0\r\n" +
+        return (f"BYE {byeTo};transport={self.getTransport()} SIP/2.0\r\n" +
             f"Via: {via}\r\n" +
             f"From: {to}\r\n" +
             f"To: {fro}\r\n" +
@@ -756,13 +766,13 @@ class SipHandler(threading.Thread):
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: {cseq}\r\n" +
             f"Server: Cisco-CSF\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
             f"Expires: 7200\r\n" +
             f"Content-Length: 0\r\n" +
             f"\r\n")
     def compileSubscripeNotifyHead(self, via, fro, to, callId, clientIp, clientPort, cseq, body):
         notifyTo = to.split('<')[1].split('>')[0]
-        return (f"NOTIFY {notifyTo};transport=tcp SIP/2.0\r\n" +
+        return (f"NOTIFY {notifyTo};transport={self.getTransport()} SIP/2.0\r\n" +
             f"Via: {via}\r\n" +
             f"From: {fro}\r\n" +
             f"To: {to}\r\n" +
@@ -772,7 +782,7 @@ class SipHandler(threading.Thread):
             f"Event: kpml\r\n" +
             f"Subscription-State: active; expires=7200\r\n" +
             f"Max-Forwards: 70\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport=tcp>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
             f"Allow: ACK,BYE,CANCEL,INVITE,NOTIFY,OPTIONS,REFER,REGISTER,UPDATE,SUBSCRIBE\r\n" +
             f"Content-Type: application/kpml-response+xml\r\n" +
             f"Content-Disposition: session;handling=required\r\n" +
