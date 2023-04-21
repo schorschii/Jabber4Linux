@@ -302,6 +302,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self.parentWidget.show()
 
     def exit(self):
+        self.parentWidget.close()
         QtCore.QCoreApplication.exit()
 
 class CallHistoryTable(QtWidgets.QTableWidget):
@@ -337,6 +338,7 @@ class PhoneBookSearchModel(QtGui.QStandardItemModel):
     def __init__(self, parent=None):
         super(PhoneBookSearchModel, self).__init__(parent)
         self.uds = UdsWrapper()
+
     @QtCore.pyqtSlot(str)
     def search(self, text):
         self.clear()
@@ -363,11 +365,14 @@ class PhoneBookSearchCompleter(QtWidgets.QCompleter):
         self.mainWindow = mainWindow
         super(PhoneBookSearchCompleter, self).__init__(*args, **kwargs)
         #self.activated[QtCore.QModelIndex].connect(self.applySuggestion)
+
     def splitPath(self, path):
         self.model().search(path)
         return super(PhoneBookSearchCompleter, self).splitPath(path)
+
     def pathFromIndex(self, index):
         return self.model().item(index.row(), 0).number
+
     #def applySuggestion(self, index):
     #    self.mainWindow.txtCall.setText(self.model().item(index.row(), 0).number)
 
@@ -538,6 +543,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.hide()
 
     def clickQuit(self, e):
+        self.close()
         sys.exit()
 
     def clickAboutDialog(self, e):
