@@ -370,6 +370,7 @@ class PhoneBookSearchCompleter(QtWidgets.QCompleter):
     def __init__(self, mainWindow, *args, **kwargs):
         self.mainWindow = mainWindow
         super(PhoneBookSearchCompleter, self).__init__(*args, **kwargs)
+        self.setCompletionMode(QtWidgets.QCompleter.UnfilteredPopupCompletion)
         #self.activated[QtCore.QModelIndex].connect(self.applySuggestion)
 
     def splitPath(self, path):
