@@ -3,10 +3,23 @@
 import traceback
 import requests
 import urllib.parse
+import threading
+import asyncio
 from xml.dom import minidom, expatbuilder
 from base64 import b64encode
 from dns import resolver, rdatatype
 
+
+class UdsHttpRequest(threading.Thread):
+    def __init__(self, url, signal):
+        # call Thread constructor
+        super(UdsHttpRequest, self).__init__(*args, **kwargs)
+        self.daemon = True
+        self.url = url
+        self.signal = signal
+
+    def run(self, *args, **kwargs):
+        pass
 
 # Cisco User Data Services REST API Wrapper
 # todo: threading would be nice
@@ -171,15 +184,15 @@ class UdsWrapper():
                 break
             return values
 
-    def queryPhoneBook(self, name=None):
+    def queryPhoneBook(self, name, signal):
+        searchUrl = f'https://{self.serverName}:{self.serverPort}/cucm-uds/users?max=10&start=0&name={urllib.parse.quote(name)}'
+        t = threading.Thread(target=self.parsePhoneBook, args=(searchUrl,signal,))
+        t.start()
+    def parsePhoneBook(self, url, signal):
         users = []
-        if(name == None):
-            searchUrl = f'https://{self.serverName}:{self.serverPort}/cucm-uds/users'
-        else:
-            searchUrl = f'https://{self.serverName}:{self.serverPort}/cucm-uds/users?max=10&start=0&name={urllib.parse.quote(name)}'
-        with requests.get(searchUrl) as result:
-            result.raise_for_status()
-            document = minidom.parseString(result.text).documentElement
+        with requests.get(url) as response:
+            response.raise_for_status()
+            document = minidom.parseString(response.text).documentElement
             for user in document.getElementsByTagName('user'):
                 users.append({
                     'id': user.getElementsByTagName('id')[0].firstChild.data if user.getElementsByTagName('id')[0].firstChild else '',
@@ -199,4 +212,4 @@ class UdsWrapper():
                     'title': user.getElementsByTagName('title')[0].firstChild.data if user.getElementsByTagName('title')[0].firstChild else '',
                     'pager': user.getElementsByTagName('pager')[0].firstChild.data if user.getElementsByTagName('pager')[0].firstChild else '',
                 })
-            return users
+            signal.emit(users)

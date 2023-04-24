@@ -335,30 +335,36 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         self.resizeRowsToContents()
 
 class PhoneBookSearchModel(QtGui.QStandardItemModel):
+    finished = QtCore.pyqtSignal(list)
+
     def __init__(self, parent=None):
         super(PhoneBookSearchModel, self).__init__(parent)
         self.uds = UdsWrapper()
+        self.finished.connect(self.processPhoneBookResult)
 
     @QtCore.pyqtSlot(str)
     def search(self, text):
+        if(not text): return
+        self.uds.queryPhoneBook(text, self.finished)
+        self.loop = QtCore.QEventLoop()
+        self.loop.exec_()
+
+    def processPhoneBookResult(self, entries):
         self.clear()
-        if text:
-            try:
-                for user in self.uds.queryPhoneBook(text):
-                    if(user['phoneNumber'] != ''):
-                        item = QtGui.QStandardItem(user['displayName']+' ('+user['phoneNumber']+')')
-                        item.number = user['phoneNumber']
-                        self.appendRow(item)
-                    if(user['homeNumber'] != ''):
-                        item = QtGui.QStandardItem(user['displayName']+' ('+user['homeNumber']+')')
-                        item.number = user['homeNumber']
-                        self.appendRow(item)
-                    if(user['mobileNumber'] != ''):
-                        item = QtGui.QStandardItem(user['displayName']+' ('+user['mobileNumber']+')')
-                        item.number = user['mobileNumber']
-                        self.appendRow(item)
-            except Exception as e:
-                print(e)
+        for entry in entries:
+            if(entry['phoneNumber'] != ''):
+                item = QtGui.QStandardItem(entry['displayName']+' ('+entry['phoneNumber']+')')
+                item.number = entry['phoneNumber']
+                self.appendRow(item)
+            if(entry['homeNumber'] != ''):
+                item = QtGui.QStandardItem(entry['displayName']+' ('+entry['homeNumber']+')')
+                item.number = entry['homeNumber']
+                self.appendRow(item)
+            if(entry['mobileNumber'] != ''):
+                item = QtGui.QStandardItem(entry['displayName']+' ('+entry['mobileNumber']+')')
+                item.number = entry['mobileNumber']
+                self.appendRow(item)
+        self.loop.quit()
 
 class PhoneBookSearchCompleter(QtWidgets.QCompleter):
     def __init__(self, mainWindow, *args, **kwargs):
