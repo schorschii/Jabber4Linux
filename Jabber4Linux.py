@@ -736,14 +736,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def loadSettings(suppressError=False):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
         with open(CFG_PATH) as f:
             return json.load(f)
     except Exception as e:
         if(not suppressError): showErrorDialog('Error loading settings file', str(e))
 def saveSettings(settings):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
+        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(CFG_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
@@ -751,7 +750,6 @@ def saveSettings(settings):
 
 def loadCallHistory(suppressError=False):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
         with open(HISTORY_PATH) as f:
             return json.load(f)
     except Exception as e:
@@ -759,7 +757,7 @@ def loadCallHistory(suppressError=False):
         return []
 def saveCallHistory(settings):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, exist_ok=True)
+        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(HISTORY_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
