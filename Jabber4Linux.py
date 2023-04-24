@@ -430,6 +430,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblCall = QtWidgets.QLabel('Call')
         grid.addWidget(self.lblCall, 1, 0)
         self.txtCall = QtWidgets.QLineEdit()
+        self.txtCall.setPlaceholderText('Phone Number (type to search address book)')
         grid.addWidget(self.txtCall, 1, 1)
         self.btnCall = QtWidgets.QPushButton('Call')
         self.btnCall.clicked.connect(self.clickCall)

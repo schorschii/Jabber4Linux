@@ -10,7 +10,7 @@ What it can:
 - mimic Cisco Jabber SIP(S) registration
   - optional: force registration (disconnect an other client which is already active and holds the line)
 - initiate and accept calls
-- realtime de-/encoding of RTP packets with codecs: PCMA, PCMU
+- realtime de-/encoding of RTP packets with codecs: PCMA, PCMU, Opus (HD telephony)
 - input/output audio device (headset) and ringtone devices selection
 - company phone book search
 
@@ -19,8 +19,6 @@ What (currently) doesn't:
 - voice mail access
 - conference features
 - call transfer
-- other commonly used audio codes (Opus, G722, G729)
-  - Opus seems to be problematic: libopus on Linux does not decode VoIP opus packets; Opus decoding in Wireshark also only works on Windows >:(
 - video telephony
 - SRTP/ZRTP encrypted calls
 

@@ -185,17 +185,24 @@ class SipHandler(threading.Thread):
             dstPort = None
             payloadType = 0x00 # PCMU default
             sdpParsed = self.parseSdpBody(body)
+            ptMap = {}
             if('c' in sdpParsed):
                 connectionParams = sdpParsed['c'].split(' ')
                 dstAddress = connectionParams[2]
             for key, value in sdpParsed['m'].items():
-                if(key.startswith('audio ')):
-                    audioParams = key.split(' ')
-                    dstPort = int(audioParams[1])
-                    if(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
+                if(not key.startswith('audio ')): continue
+                audioParams = key.split(' ')
+                dstPort = int(audioParams[1])
+                if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
+                elif(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
+                for codecOption in value['a']:
+                    splitter1 = codecOption.split(':')
+                    splitter2 = splitter1[1].split(' ')
+                    ptMap[int(splitter2[0])] = splitter2[1]
             if(dstAddress != None and dstPort != None):
-                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName)
+                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, ptMap)
                 self.audioOut.start()
+                self.audioIn.applyPtMap(ptMap)
 
         ### handle outgoing calls
         if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
@@ -217,17 +224,24 @@ class SipHandler(threading.Thread):
                 dstPort = None
                 payloadType = 0x00 # PCMU default
                 sdpParsed = self.parseSdpBody(body)
+                ptMap = {}
                 if('c' in sdpParsed):
                     connectionParams = sdpParsed['c'].split(' ')
                     dstAddress = connectionParams[2]
                 for key, value in sdpParsed['m'].items():
-                    if(key.startswith('audio ')):
-                        audioParams = key.split(' ')
-                        dstPort = int(audioParams[1])
-                        if(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
+                    if(not key.startswith('audio ')): continue
+                    audioParams = key.split(' ')
+                    dstPort = int(audioParams[1])
+                    if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
+                    elif(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
+                for codecOption in value['a']:
+                    splitter1 = codecOption.split(':')
+                    splitter2 = splitter1[1].split(' ')
+                    ptMap[int(splitter2[0])] = splitter2[1]
                 if(dstAddress != None and dstPort != None):
-                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName)
+                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, ptMap)
                     self.audioOut.start()
+                    self.audioIn.applyPtMap(ptMap)
                 # send SIP ACK
                 senddata = self.compileInviteOkAckHead(
                     headers['To_parsed'],
@@ -579,9 +593,9 @@ class SipHandler(threading.Thread):
             f"t=0 0\r\n" +
             f"a=cisco-mari:v1\r\n" +
             f"a=cisco-mari-rate\r\n" +
-            f"m=audio {clientPort} RTP/AVP 0 8 111 101\r\n" + # original: RTP/AVP 114 9 104 105 0 8 18 111 101
+            f"m=audio {clientPort} RTP/AVP 114 0 8 111 101\r\n" + # original: RTP/AVP 114 9 104 105 0 8 18 111 101
             f"c=IN IP4 {clientIp}\r\n" +
-            #f"a=rtpmap:114 opus/48000/2\r\n" +
+            f"a=rtpmap:114 opus/48000/2\r\n" +
             #f"a=rtpmap:9 G722/8000\r\n" +
             #f"a=rtpmap:104 G7221/16000\r\n" +
             #f"a=fmtp:104 bitrate=32000\r\n" +

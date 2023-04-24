@@ -11,18 +11,20 @@ import os, sys
 
 # codec imports
 import audioop
+import opuslib
 
 
 class InputAudioSocket(threading.Thread):
     CHUNK = 1024
 
-    def __init__(self, interface, audio, deviceName=None, *args, **kwargs):
+    def __init__(self, interface, audio, deviceName=None, ptMap={}, *args, **kwargs):
         self.sock = None
         self.audioStream = None
-        self.soundcardSampleRate = 8000 # PCMA and PCMU always uses 8khz
+        self.soundcardSampleRate = 8000 # use 8khz as default, so we do not need to convert PCMU and PCMA
         self.sampleRateConverterState = None
         self.outputSocketReference = None
         self.stopFlag = False
+        self.applyPtMap(ptMap)
 
         # open RTP UDP socket for incoming audio data
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -36,7 +38,7 @@ class InputAudioSocket(threading.Thread):
             if((deviceInfo.get('maxOutputChannels')) > 0):
                 if(deviceName != None and deviceName in deviceInfo.get('name')):
                     deviceIndex = i
-                    self.soundcardSampleRate = int(deviceInfo.get('defaultSampleRate'))
+                    self.soundcardSampleRate = int(deviceInfo.get('defaultSampleRate')) # use specific soundcard sample rate, otherwise error
         if deviceIndex == None: print(':: using default output device ', deviceName)
         # open sound card
         self.audioStream = audio.open(
@@ -51,6 +53,17 @@ class InputAudioSocket(threading.Thread):
         super(InputAudioSocket, self).__init__(*args, **kwargs)
         self.daemon = True
 
+    def applyPtMap(self, ptMap):
+        # init opuslib if given in payload type map
+        self.opusPayloadType = -1
+        for payloadTypeNumber, payloadTypeDescription in ptMap.items():
+            splitter = payloadTypeDescription.lower().split('/')
+            if(len(splitter) < 2): continue
+            if(splitter[0] == 'opus' and int(splitter[1]) >= 8000):
+                self.opusPayloadType = payloadTypeNumber
+                self.opusSampleRate = int(splitter[1])
+                self.opusDecoder = opuslib.Decoder(int(splitter[1]), 1)
+
     def run(self, *args, **kwargs):
         print(f':: opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
 
@@ -58,6 +71,7 @@ class InputAudioSocket(threading.Thread):
             payloadType = -1
             counter = 0
             while True:
+                # read from RTP socket
                 if(self.stopFlag): break
                 datagram, address = self.sock.recvfrom(1024)
 
@@ -68,7 +82,7 @@ class InputAudioSocket(threading.Thread):
                 if(payloadType == -1):
                     payloadType = rtpHead[1] & 0b01111111
 
-                # for sender report RTCP packets
+                # store information for outgoing sender report RTCP packets
                 if(self.outputSocketReference != None):
                     self.outputSocketReference.remoteSsrc = rtpHead[8:12]
                     self.outputSocketReference.hsnr = rtpHead[2:4]
@@ -76,17 +90,25 @@ class InputAudioSocket(threading.Thread):
                 # decode payload
                 rtpBody = datagram[12:]
                 audioData = b''
+                payloadSampleRate = 8000 # PCMA and PCMU always uses 8khz
                 if(payloadType == 0):
                     audioData = audioop.ulaw2lin(rtpBody, 2)
                 elif(payloadType == 8):
                     audioData = audioop.alaw2lin(rtpBody, 2)
+                elif(payloadType == self.opusPayloadType):
+                    payloadSampleRate = self.opusSampleRate
+                    audioData = self.opusDecoder.decode(rtpBody, 960)
                 else:
-                    raise Exception(f'Unsupported codec / payload type {payloadType}')
-                    # todo: support dynamic payloadTypes negotiated in SDP packets
-                if(self.soundcardSampleRate != 8000): # PCMA and PCMU always uses 8khz
-                    audioData, state = audioop.ratecv(audioData, 2, 1, 8000, self.soundcardSampleRate, self.sampleRateConverterState)
+                    print(f'Unsupported codec / payload type {payloadType}')
+
+                # sample rate conversion
+                if(self.soundcardSampleRate != payloadSampleRate):
+                    audioData, state = audioop.ratecv(audioData, 2, 1, payloadSampleRate, self.soundcardSampleRate, self.sampleRateConverterState)
                     self.sampleRateConverterState = state
+
+                # write to soundcard
                 self.audioStream.write(audioData)
+
         except OSError:
             pass
 
@@ -107,7 +129,7 @@ class InputAudioSocket(threading.Thread):
 class OutputAudioSocket(threading.Thread):
     CHUNK = 160
 
-    def __init__(self, sock, dstAddress, dstPort, payloadType, audio, deviceName=None, *args, **kwargs):
+    def __init__(self, sock, dstAddress, dstPort, payloadType, audio, deviceName=None, ptMap={}, *args, **kwargs):
         self.dstAddress = None
         self.dstPort = None
         self.dstPortCtrl = None
@@ -117,9 +139,19 @@ class OutputAudioSocket(threading.Thread):
         self.ssrc = os.urandom(4)
         self.remoteSsrc = bytes([0x00, 0x00, 0x00, 0x00])
         self.hsnr = bytes([0x00, 0x00])
-        self.soundcardSampleRate = 8000 # PCMA and PCMU always uses 8khz
+        self.soundcardSampleRate = 8000 # use 8khz as default, so we do not need to convert PCMU and PCMA
         self.sampleRateConverterState = None
         self.stopFlag = False
+
+        # init opuslib if given in payload type map
+        self.opusPayloadType = -1
+        for payloadTypeNumber, payloadTypeDescription in ptMap.items():
+            splitter = payloadTypeDescription.lower().split('/')
+            if(len(splitter) < 2): continue
+            if(splitter[0] == 'opus' and int(splitter[1]) >= 8000):
+                self.opusPayloadType = payloadTypeNumber
+                self.opusSampleRate = int(splitter[1])
+                self.opusEncoder = opuslib.Encoder(int(splitter[1]), 1, 'voip')
 
         # prepare UDP socket for outgoing audio data
         self.dstAddress = dstAddress
@@ -140,7 +172,7 @@ class OutputAudioSocket(threading.Thread):
             if((deviceInfo.get('maxInputChannels')) > 0):
                 if(deviceName != None and deviceName in deviceInfo.get('name')):
                     deviceIndex = i
-                    self.soundcardSampleRate = int(deviceInfo.get('defaultSampleRate'))
+                    self.soundcardSampleRate = int(deviceInfo.get('defaultSampleRate')) # use specific soundcard sample rate, otherwise error
         if deviceIndex == None: print(':: using default input device ', deviceName)
         # open sound card
         self.audioStream = audio.open(
@@ -159,18 +191,14 @@ class OutputAudioSocket(threading.Thread):
         print(f':: starting outgoing UDP RTP stream to {self.dstAddress}:{self.dstPort}')
 
         # STUN binding indication
-        self.sock.sendto(bytes([
+        stunInitPacket = bytes([
             0x00, 0x11, # binding indication
             0x00, 0x00, # message length
             0x21, 0x12, 0xa4, 0x42, # message cookie
             0x4b, 0x65, 0x65, 0x70, 0x61, 0x20, 0x52, 0x54, 0x50, 0x00, 0x00, 0x00 # transaction ID
-        ]), (self.dstAddress, self.dstPort))
-        self.sockCtrl.sendto(bytes([
-            0x00, 0x11, # binding indication
-            0x00, 0x00, # message length
-            0x21, 0x12, 0xa4, 0x42, # message cookie
-            0x4b, 0x65, 0x65, 0x70, 0x61, 0x20, 0x52, 0x54, 0x50, 0x00, 0x00, 0x00 # transaction ID
-        ]), (self.dstAddress, self.dstPortCtrl))
+        ])
+        self.sock.sendto(stunInitPacket, (self.dstAddress, self.dstPort))
+        self.sockCtrl.sendto(stunInitPacket, (self.dstAddress, self.dstPortCtrl))
 
         try:
             timestamp = self.CHUNK
@@ -178,6 +206,8 @@ class OutputAudioSocket(threading.Thread):
             marker = 0x80
             while True:
                 if(self.stopFlag): break
+
+                # compile RTP head
                 sequenceNumberBytes = struct.pack('>H', sequenceNumber)
                 timestampBytes = struct.pack('>I', timestamp)
                 rtpHead = bytes([
@@ -187,20 +217,34 @@ class OutputAudioSocket(threading.Thread):
                     timestampBytes[0], timestampBytes[1], timestampBytes[2], timestampBytes[3],
                     self.ssrc[0], self.ssrc[1], self.ssrc[2], self.ssrc[3],
                 ])
+
+                # read from soundcard
                 audioData = self.audioStream.read(self.CHUNK)
-                if(self.soundcardSampleRate != 8000): # PCMA and PCMU always uses 8khz
-                    audioData, state = audioop.ratecv(audioData, 2, 1, self.soundcardSampleRate, 8000, self.sampleRateConverterState)
+
+                # sample rate conversion
+                payloadSampleRate = 8000 # PCMA and PCMU always uses 8khz
+                if(self.payloadType == self.opusPayloadType):
+                    payloadSampleRate = self.opusSampleRate
+                if(self.soundcardSampleRate != payloadSampleRate):
+                    audioData, state = audioop.ratecv(audioData, 2, 1, self.soundcardSampleRate, payloadSampleRate, self.sampleRateConverterState)
                     self.sampleRateConverterState = state
+
+                # encode payload
                 if(self.payloadType == 0x08):
                     rtpBody = audioop.lin2alaw(audioData, 2)
-                else:
+                elif(self.payloadType == self.opusPayloadType):
+                    rtpBody = self.opusEncoder.encode(audioData, 960)
+                else: # use PCMU as fallback
                     rtpBody = audioop.lin2ulaw(audioData, 2)
+
+                # write to RTP socket
                 self.sock.sendto(rtpHead+rtpBody, (self.dstAddress, self.dstPort))
 
                 marker = 0
                 timestamp += self.CHUNK
                 sequenceNumber += 1
                 if(sequenceNumber > 65536): sequenceNumber = 0
+
         except OSError:
             pass
 
