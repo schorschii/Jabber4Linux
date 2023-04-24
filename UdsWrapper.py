@@ -4,22 +4,10 @@ import traceback
 import requests
 import urllib.parse
 import threading
-import asyncio
 from xml.dom import minidom, expatbuilder
 from base64 import b64encode
 from dns import resolver, rdatatype
 
-
-class UdsHttpRequest(threading.Thread):
-    def __init__(self, url, signal):
-        # call Thread constructor
-        super(UdsHttpRequest, self).__init__(*args, **kwargs)
-        self.daemon = True
-        self.url = url
-        self.signal = signal
-
-    def run(self, *args, **kwargs):
-        pass
 
 # Cisco User Data Services REST API Wrapper
 # todo: threading would be nice
