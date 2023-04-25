@@ -89,8 +89,6 @@ class AboutWindow(QtWidgets.QDialog):
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
 class LoginWindow(QtWidgets.QDialog):
-    debug = False
-
     def __init__(self, debug=False, *args, **kwargs):
         self.debug = debug
         super(LoginWindow, self).__init__(*args, **kwargs)
@@ -278,8 +276,6 @@ class CallWindow(QtWidgets.QDialog):
         self.callTimeInterval.start()
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
-    parentWidget = None
-
     def __init__(self, icon, parent):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
         self.parentWidget = parent
