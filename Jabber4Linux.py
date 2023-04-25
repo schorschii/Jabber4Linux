@@ -455,10 +455,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.evtCallClosed.connect(self.evtCallClosedHandler)
 
         # init QCompleter for phone book search
-        self.phoneBookSearchCompleterModel = PhoneBookSearchModel(self)
-        phoneBookSearchCompleter = PhoneBookSearchCompleter(self, caseSensitivity=QtCore.Qt.CaseInsensitive)
-        phoneBookSearchCompleter.setModel(self.phoneBookSearchCompleterModel)
-        self.txtCall.setCompleter(phoneBookSearchCompleter)
+        try:
+            self.phoneBookSearchCompleterModel = PhoneBookSearchModel(self)
+            phoneBookSearchCompleter = PhoneBookSearchCompleter(self, caseSensitivity=QtCore.Qt.CaseInsensitive)
+            phoneBookSearchCompleter.setModel(self.phoneBookSearchCompleterModel)
+            self.txtCall.setCompleter(phoneBookSearchCompleter)
+        except Exception:
+            traceback.format_exc()
 
         # Menubar
         mainMenu = self.menuBar()
