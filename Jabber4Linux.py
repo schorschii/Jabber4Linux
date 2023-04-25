@@ -228,11 +228,6 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.move(qr.topLeft())
 
 class CallWindow(QtWidgets.QDialog):
-    isOutgoingCall = None
-
-    callTimeInterval = None
-    startTime = 0
-
     def __init__(self, remotePartyName, isOutgoingCall, *args, **kwargs):
         self.isOutgoingCall = isOutgoingCall
         self.startTime = time.time()
@@ -268,6 +263,9 @@ class CallWindow(QtWidgets.QDialog):
 
         # schedule call timer update
         self.refreshCallTimer()
+
+    def closeEvent(self, event):
+        self.callTimeInterval.cancel()
 
     def cancelCall(self):
         self.callTimeInterval.cancel()
