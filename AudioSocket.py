@@ -20,7 +20,7 @@ class InputAudioSocket(threading.Thread):
     def __init__(self, interface, audio, deviceName=None, ptMap={}, *args, **kwargs):
         self.sock = None
         self.audioStream = None
-        self.soundcardSampleRate = 8000 # use 8khz as default, so we do not need to convert PCMU and PCMA
+        self.soundcardSampleRate = 48000 # common default
         self.sampleRateConverterState = None
         self.outputSocketReference = None
         self.stopFlag = False
@@ -139,9 +139,13 @@ class OutputAudioSocket(threading.Thread):
         self.ssrc = os.urandom(4)
         self.remoteSsrc = bytes([0x00, 0x00, 0x00, 0x00])
         self.hsnr = bytes([0x00, 0x00])
-        self.soundcardSampleRate = 8000 # use 8khz as default, so we do not need to convert PCMU and PCMA
         self.sampleRateConverterState = None
         self.stopFlag = False
+
+        # use 8khz as default, so we do not need to convert PCMU and PCMA
+        self.soundcardSampleRate = 8000
+        if(self.payloadType != 0 and self.payloadType != 8):
+            self.soundcardSampleRate = 48000
 
         # init opuslib if given in payload type map
         self.opusPayloadType = -1
@@ -152,6 +156,8 @@ class OutputAudioSocket(threading.Thread):
                 self.opusPayloadType = payloadTypeNumber
                 self.opusSampleRate = int(splitter[1])
                 self.opusEncoder = opuslib.Encoder(int(splitter[1]), 1, 'voip')
+        if(self.payloadType == self.opusPayloadType):
+            self.CHUNK = 960
 
         # prepare UDP socket for outgoing audio data
         self.dstAddress = dstAddress
@@ -233,7 +239,7 @@ class OutputAudioSocket(threading.Thread):
                 if(self.payloadType == 0x08):
                     rtpBody = audioop.lin2alaw(audioData, 2)
                 elif(self.payloadType == self.opusPayloadType):
-                    rtpBody = self.opusEncoder.encode(audioData, 960)
+                    rtpBody = self.opusEncoder.encode(audioData, self.CHUNK)
                 else: # use PCMU as fallback
                     rtpBody = audioop.lin2ulaw(audioData, 2)
 
