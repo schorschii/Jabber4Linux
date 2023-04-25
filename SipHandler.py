@@ -181,28 +181,11 @@ class SipHandler(threading.Thread):
 
         if(self.currentCall != None and 'ACK' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
             # start outgoing audio stream
-            dstAddress = None
-            dstPort = None
-            payloadType = 0x00 # PCMU default
-            sdpParsed = self.parseSdpBody(body)
-            ptMap = {}
-            if('c' in sdpParsed):
-                connectionParams = sdpParsed['c'].split(' ')
-                dstAddress = connectionParams[2]
-            for key, value in sdpParsed['m'].items():
-                if(not key.startswith('audio ')): continue
-                audioParams = key.split(' ')
-                dstPort = int(audioParams[1])
-                if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
-                elif(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
-                for codecOption in value['a']:
-                    splitter1 = codecOption.split(':')
-                    splitter2 = splitter1[1].split(' ')
-                    ptMap[int(splitter2[0])] = splitter2[1]
+            dstAddress, dstPort, payloadType, payloadTypeMap = self.parseSdpBody(body)
             if(dstAddress != None and dstPort != None):
-                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, ptMap)
+                self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, payloadTypeMap)
                 self.audioOut.start()
-                self.audioIn.applyPtMap(ptMap)
+                self.audioIn.applyPtMap(payloadTypeMap)
 
         ### handle outgoing calls
         if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
@@ -220,28 +203,11 @@ class SipHandler(threading.Thread):
             elif(headers['SIP/2.0'].startswith('200')):
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_ACCEPTED, '')
                 # start outgoing audio stream
-                dstAddress = None
-                dstPort = None
-                payloadType = 0x00 # PCMU default
-                sdpParsed = self.parseSdpBody(body)
-                ptMap = {}
-                if('c' in sdpParsed):
-                    connectionParams = sdpParsed['c'].split(' ')
-                    dstAddress = connectionParams[2]
-                for key, value in sdpParsed['m'].items():
-                    if(not key.startswith('audio ')): continue
-                    audioParams = key.split(' ')
-                    dstPort = int(audioParams[1])
-                    if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
-                    elif(audioParams[3] == '8'): payloadType = 0x08 # switch to PCMA if requested
-                for codecOption in value['a']:
-                    splitter1 = codecOption.split(':')
-                    splitter2 = splitter1[1].split(' ')
-                    ptMap[int(splitter2[0])] = splitter2[1]
+                dstAddress, dstPort, payloadType, payloadTypeMap = self.parseSdpBody(body)
                 if(dstAddress != None and dstPort != None):
-                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, ptMap)
+                    self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, payloadTypeMap)
                     self.audioOut.start()
-                    self.audioIn.applyPtMap(ptMap)
+                    self.audioIn.applyPtMap(payloadTypeMap)
                 # send SIP ACK
                 senddata = self.compileInviteOkAckHead(
                     headers['To_parsed'],
@@ -459,6 +425,7 @@ class SipHandler(threading.Thread):
         return name+' ('+number+')', number
 
     def parseSdpBody(self, body):
+        # parse SDP into a dict
         attrs = {}
         inMediaDescription = None
         for line in body.splitlines():
@@ -476,7 +443,27 @@ class SipHandler(threading.Thread):
                         attrs['m'][inMediaDescription][splitter[0]] = [splitter[1]]
                 else:
                     attrs[splitter[0]] = splitter[1]
-        return attrs
+        # get target address
+        targetAddress = None
+        if('c' in attrs): #c=IN IP4 0.0.0.0
+            connectionParams = attrs['c'].split(' ')
+            targetAddress = connectionParams[2]
+        # get audio params
+        targetPort = None
+        payloadType = 0 # PCMU default/fallback
+        payloadTypeMap = {}
+        for key, value in attrs['m'].items():
+            if(not key.startswith('audio ')): continue
+            audioParams = key.split(' ') #m=audio 19424 RTP/AVP 8 101
+            targetPort = int(audioParams[1])
+            if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
+            elif(audioParams[3] == '8'): payloadType = 8 # switch to PCMA if requested
+            for codecOption in value['a']:
+                splitter1 = codecOption.split(':')
+                if(splitter1[0] == 'rtpmap'): #a=rtpmap:8 PCMA/8000
+                    splitter2 = splitter1[1].split(' ')
+                    payloadTypeMap[int(splitter2[0])] = splitter2[1]
+        return targetAddress, targetPort, payloadType, payloadTypeMap
 
     EMPTY_SESSION_ID = '00000000000000000000000000000000'
     def generateSessionId(self):
