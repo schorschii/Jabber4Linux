@@ -300,18 +300,26 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         QtCore.QCoreApplication.exit()
 
 class CallHistoryTable(QtWidgets.QTableWidget):
+    keyPressed = QtCore.pyqtSignal(int)
+
     def __init__(self, *args):
+        self.calls = {}
         QtWidgets.QTableWidget.__init__(self, *args)
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        #self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
 
+    def keyPressEvent(self, event):
+        super(CallHistoryTable, self).keyPressEvent(event)
+        if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
+
     def setData(self, calls):
-        self.setRowCount(len(calls))
+        self.calls = calls
+        self.setRowCount(len(self.calls))
         self.setColumnCount(3)
 
         counter = 0
-        for call in calls:
+        for call in self.calls:
             newItem = QtWidgets.QTableWidgetItem('>' if call['incoming'] else '<')
             self.setItem(counter, 0, newItem)
             newItem = QtWidgets.QTableWidgetItem(call['displayName'])
@@ -435,6 +443,7 @@ class MainWindow(QtWidgets.QMainWindow):
         grid.addWidget(self.lblHistory, 2, 0)
         self.tblCalls = CallHistoryTable()
         self.tblCalls.setData(self.callHistory)
+        self.tblCalls.keyPressed.connect(self.tblCallsKeyPressed)
         self.tblCalls.doubleClicked.connect(self.recallHistory)
         grid.addWidget(self.tblCalls, 2, 1)
 
@@ -573,6 +582,16 @@ class MainWindow(QtWidgets.QMainWindow):
             historyItem = self.callHistory[row.row()]
             if('number' in historyItem and historyItem['number'].strip() != ''):
                 self.sipHandler.call(historyItem['number'])
+                break
+
+    def tblCallsKeyPressed(self, keyCode):
+        if(keyCode == QtCore.Qt.Key_Delete):
+            indices = self.tblCalls.selectionModel().selectedRows() 
+            for index in sorted(indices, reverse=True):
+                del self.callHistory[index.row()]
+            self.tblCalls.setData(self.callHistory)
+        if(keyCode == QtCore.Qt.Key_Return):
+            self.recallHistory(None)
 
     def addCallToHistory(self, displayName, number, incoming):
         self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'incoming':incoming})
