@@ -185,7 +185,6 @@ class SipHandler(threading.Thread):
             if(dstAddress != None and dstPort != None):
                 self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, payloadTypeMap)
                 self.audioOut.start()
-                self.audioIn.applyPtMap(payloadTypeMap)
 
         ### handle outgoing calls
         if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
@@ -207,7 +206,6 @@ class SipHandler(threading.Thread):
                 if(dstAddress != None and dstPort != None):
                     self.audioOut = OutputAudioSocket(self.audioIn.sock, dstAddress, dstPort, payloadType, self.audio, self.inputDeviceName, payloadTypeMap)
                     self.audioOut.start()
-                    self.audioIn.applyPtMap(payloadTypeMap)
                 # send SIP ACK
                 senddata = self.compileInviteOkAckHead(
                     headers['To_parsed'],
@@ -307,11 +305,13 @@ class SipHandler(threading.Thread):
         self.audioIn.start()
 
         # ack SIP INVITE message
+        sdp, payloadTypeMap = self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
         senddata = self.compileInviteOkHead(
             headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], headers['INVITE'].split(' ')[0],
-            self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
+            sdp
         )
+        self.audioIn.applyPtMap(payloadTypeMap)
         self.sendSipMessage(senddata)
         self.evtIncomingCall.emit(self.INCOMING_CALL_ACCEPTED)
 
@@ -340,11 +340,13 @@ class SipHandler(threading.Thread):
         self.audioIn.start()
 
         # send SIP INVITE
+        sdp, payloadTypeMap = self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
         senddata = self.compileInviteHead(
             self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number, self.currentCall['callId'],
-            self.compileInviteBody(self.audioIn.sock.getsockname()[0], str(self.audioIn.sock.getsockname()[1]))
+            sdp
         )
+        self.audioIn.applyPtMap(payloadTypeMap)
         self.sendSipMessage(senddata)
 
     def cancelCall(self):
@@ -456,13 +458,15 @@ class SipHandler(threading.Thread):
             if(not key.startswith('audio ')): continue
             audioParams = key.split(' ') #m=audio 19424 RTP/AVP 8 101
             targetPort = int(audioParams[1])
-            if(audioParams[3] == '114'): payloadType = 114 # switch to OPUS if requested
-            elif(audioParams[3] == '8'): payloadType = 8 # switch to PCMA if requested
             for codecOption in value['a']:
                 splitter1 = codecOption.split(':')
                 if(splitter1[0] == 'rtpmap'): #a=rtpmap:8 PCMA/8000
                     splitter2 = splitter1[1].split(' ')
-                    payloadTypeMap[int(splitter2[0])] = splitter2[1]
+                    payloadTypeNumber = int(splitter2[0])
+                    payloadTypeDescription = splitter2[1]
+                    payloadTypeMap[payloadTypeNumber] = payloadTypeDescription
+                    if(payloadTypeDescription.upper().startswith('PCMA')): payloadType = payloadTypeNumber # switch to PCMA if requested (always 8)
+                    if(payloadTypeDescription.lower().startswith('opus')): payloadType = payloadTypeNumber # switch to OPUS if requested
         return targetAddress, targetPort, payloadType, payloadTypeMap
 
     EMPTY_SESSION_ID = '00000000000000000000000000000000'
@@ -573,7 +577,7 @@ class SipHandler(threading.Thread):
             f"Content-Length: 0\r\n" +
             f"\r\n")
     def compileInviteBody(self, clientIp, clientPort):
-        return (f"v=0\r\n" +
+        sdp = (f"v=0\r\n" +
             f"o=Cisco-SIPUA 22437 0 IN IP4 {clientIp}\r\n" +
             f"s=SIP Call\r\n" +
             f"b=AS:4000\r\n" +
@@ -598,6 +602,8 @@ class SipHandler(threading.Thread):
             f"a=rtpmap:101 telephone-event/8000\r\n" +
             f"a=fmtp:101 0-16\r\n" +
             f"a=sendrecv\r\n")
+        payloadTypeMap = {114: 'opus/48000/2', 0: 'PCMU/8000', 8: 'PCMA/8000'}
+        return sdp, payloadTypeMap
     def compileTryingHead(self, via, fro, to, callId, sessionId, remoteSessionId, contact):
         return (f"SIP/2.0 100 Trying\r\n" +
             f"Via: {via}\r\n" +
