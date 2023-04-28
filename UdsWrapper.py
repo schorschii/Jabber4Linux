@@ -148,7 +148,7 @@ class UdsWrapper():
                     document2 = expatbuilder.parseString(provisionResult.text, False).documentElement
                     values['deviceSecurityMode'] = document2.getElementsByTagName('deviceSecurityMode')[0].firstChild.data
                     values['transportLayerProtocol'] = document2.getElementsByTagName('transportLayerProtocol')[0].firstChild.data
-                    values['certHash'] = document2.getElementsByTagName('certHash')[0].firstChild.data
+                    values['certHash'] = document2.getElementsByTagName('certHash')[0].firstChild.data if document2.getElementsByTagName('certHash')[0].firstChild else None
                 except Exception:
                     if(self.debug): traceback.print_exc()
                     return None
