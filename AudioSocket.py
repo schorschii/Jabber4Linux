@@ -8,6 +8,7 @@ import struct
 import time
 import re
 import os, sys
+import traceback
 
 # codec imports
 import audioop
@@ -24,7 +25,7 @@ class InputAudioSocket(threading.Thread):
         self.sampleRateConverterState = None
         self.outputSocketReference = None
         self.stopFlag = False
-        self.applyPtMap(ptMap)
+        self.applyPayloadTypeMap(ptMap)
 
         # open RTP UDP socket for incoming audio data
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -53,7 +54,7 @@ class InputAudioSocket(threading.Thread):
         super(InputAudioSocket, self).__init__(*args, **kwargs)
         self.daemon = True
 
-    def applyPtMap(self, ptMap):
+    def applyPayloadTypeMap(self, ptMap):
         # init opuslib if given in payload type map
         self.opusPayloadType = -1
         for payloadTypeNumber, payloadTypeDescription in ptMap.items():
@@ -121,10 +122,11 @@ class InputAudioSocket(threading.Thread):
         self.stopFlag = True
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
-        except OSError: pass
-        self.sock.close()
-        self.audioStream.stop_stream()
-        self.audioStream.close()
+        except OSError: pass # Errno 107 is OK, may already closed by OutputAudioSocket
+            #print(traceback.format_exc())
+            #self.sock.close()
+            #self.audioStream.stop_stream()
+            #self.audioStream.close()
 
 class OutputAudioSocket(threading.Thread):
     CHUNK = 160
@@ -264,12 +266,15 @@ class OutputAudioSocket(threading.Thread):
         self.stopFlag = True
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError: pass # Errno 107 is OK, may already closed by InputAudioSocket
+            #print(traceback.format_exc())
+            #self.sock.close()
+            #self.audioStream.stop_stream()
+            #self.audioStream.close()
+        try:
             self.sockCtrl.shutdown(socket.SHUT_RDWR)
-        except OSError: pass
-        self.sock.close()
-        self.sockCtrl.close()
-        self.audioStream.stop_stream()
-        self.audioStream.close()
+        except OSError: pass # Errno 107 is OK, may already closed by InputAudioSocket
+            #self.sockCtrl.close()
 
 
 class AudioPlayer(threading.Thread):
@@ -331,6 +336,7 @@ class AudioPlayer(threading.Thread):
                 s['stream'].write(audioData)
             data = self.wf.readframes(self.CHUNK)
         for s in self.audioStreams:
+            s['stream'].stop_stream()
             s['stream'].close()
 
     def stop(self):

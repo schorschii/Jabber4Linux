@@ -217,7 +217,7 @@ class SipHandler(threading.Thread):
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_FAILED, headers['Warning'] if 'Warning' in headers else headers['SIP/2.0'])
 
         ### handle BYE from remote party (of incoming and outgoing calls)
-        if(self.currentCall != None and 'BYE' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
+        if(self.currentCall != None and 'BYE' in headers and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['headers']['Call-ID'].split('@')[0]):
             # stop audio streams
             if(self.audioOut != None):
                 self.audioOut.stop()
@@ -311,7 +311,7 @@ class SipHandler(threading.Thread):
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], headers['INVITE'].split(' ')[0],
             sdp
         )
-        self.audioIn.applyPtMap(payloadTypeMap)
+        self.audioIn.applyPayloadTypeMap(payloadTypeMap)
         self.sendSipMessage(senddata)
         self.evtIncomingCall.emit(self.INCOMING_CALL_ACCEPTED)
 
@@ -346,7 +346,7 @@ class SipHandler(threading.Thread):
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number, self.currentCall['callId'],
             sdp
         )
-        self.audioIn.applyPtMap(payloadTypeMap)
+        self.audioIn.applyPayloadTypeMap(payloadTypeMap)
         self.sendSipMessage(senddata)
 
     def cancelCall(self):
