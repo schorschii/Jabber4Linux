@@ -320,12 +320,26 @@ class CallHistoryTable(QtWidgets.QTableWidget):
 
         counter = 0
         for call in self.calls:
-            newItem = QtWidgets.QTableWidgetItem('>' if call['incoming'] else '<')
+            color = None
+
+            if(('type' in call and call['type'] == MainWindow.CALL_HISTORY_OUTGOING) or ('incoming' in call and not call['incoming'])):
+                newItem = QtWidgets.QTableWidgetItem('<')
+            elif(('type' in call and call['type'] == MainWindow.CALL_HISTORY_INCOMING) or ('incoming' in call and call['incoming'])):
+                newItem = QtWidgets.QTableWidgetItem('>')
+            elif('type' in call and call['type'] == MainWindow.CALL_HISTORY_INCOMING_MISSED):
+                color = QtGui.QColor(255, 0, 0)
+                newItem = QtWidgets.QTableWidgetItem('>')
+                if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 0, newItem)
+
             newItem = QtWidgets.QTableWidgetItem(call['displayName'])
+            if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 1, newItem)
+
             newItem = QtWidgets.QTableWidgetItem(call['date'])
+            if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 2, newItem)
+
             counter += 1
 
         self.setHorizontalHeaderLabels([
@@ -549,7 +563,6 @@ class MainWindow(QtWidgets.QMainWindow):
             'output-device': self.outputDeviceName,
             'input-device': self.inputDeviceName,
         })
-        saveCallHistory(self.callHistory)
         if(self.debug):
             sys.exit()
         else:
@@ -590,12 +603,17 @@ class MainWindow(QtWidgets.QMainWindow):
             for index in sorted(indices, reverse=True):
                 del self.callHistory[index.row()]
             self.tblCalls.setData(self.callHistory)
+            saveCallHistory(self.callHistory)
         if(keyCode == QtCore.Qt.Key_Return):
             self.recallHistory(None)
 
-    def addCallToHistory(self, displayName, number, incoming):
-        self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'incoming':incoming})
+    CALL_HISTORY_OUTGOING = 1
+    CALL_HISTORY_INCOMING = 2
+    CALL_HISTORY_INCOMING_MISSED = 3
+    def addCallToHistory(self, displayName, number, type):
+        self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'type':type})
         self.tblCalls.setData(self.callHistory)
+        saveCallHistory(self.callHistory)
 
     STATUS_OK = 0
     STATUS_FAIL = 1
@@ -665,7 +683,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 showErrorDialog('Registration Error', text)
 
     def evtIncomingCallHandler(self, status):
-        self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], True)
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
             diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
@@ -682,8 +699,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
             self.incomingCallWindow.show()
         elif(status == SipHandler.INCOMING_CALL_CANCELED):
+            self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING_MISSED)
             self.closeIncomingCallWindow()
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
+            self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING)
             self.closeIncomingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['From_parsed_text'] if 'From_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
             self.callWindow.finished.connect(self.callWindowFinished)
@@ -722,7 +741,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ringtoneOutputDeviceNames
             )
             self.ringtonePlayer.start()
-            self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], False)
+            self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], MainWindow.CALL_HISTORY_OUTGOING)
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
