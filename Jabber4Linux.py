@@ -716,6 +716,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.sipHandler.acceptCall()
         else:
             self.sipHandler.rejectCall()
+            self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING_MISSED)
 
     def closeIncomingCallWindow(self):
         if(self.ringtonePlayer != None):
