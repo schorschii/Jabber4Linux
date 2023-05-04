@@ -251,7 +251,7 @@ class OutputAudioSocket(threading.Thread):
                 marker = 0
                 timestamp += self.CHUNK
                 sequenceNumber += 1
-                if(sequenceNumber > 65536): sequenceNumber = 0
+                if(sequenceNumber > 65535): sequenceNumber = 0
 
         except OSError:
             pass
