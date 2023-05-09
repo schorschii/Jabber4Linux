@@ -27,6 +27,7 @@ PRODUCT_VERSION = '0.1'
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
 HISTORY_PATH = CFG_DIR+'/history.json'
+PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
 
 
 def showErrorDialog(title, text, additionalText=''):
@@ -275,6 +276,61 @@ class CallWindow(QtWidgets.QDialog):
         self.callTimeInterval.daemon = True
         self.callTimeInterval.start()
 
+class PhoneBookEntryWindow(QtWidgets.QDialog):
+    def __init__(self, mainWindow, *args, **kwargs):
+        super(PhoneBookEntryWindow, self).__init__(*args, **kwargs)
+        self.mainWindow = mainWindow
+
+        # window layout
+        layout = QtWidgets.QGridLayout()
+
+        self.lblCall = QtWidgets.QLabel('Name')
+        layout.addWidget(self.lblCall, 0, 0)
+        self.txtName = QtWidgets.QLineEdit()
+        layout.addWidget(self.txtName, 0, 1)
+
+        self.lblCall = QtWidgets.QLabel('Number')
+        layout.addWidget(self.lblCall, 1, 0)
+        self.txtNumber = QtWidgets.QLineEdit()
+        layout.addWidget(self.txtNumber, 1, 1)
+
+        self.lblCall = QtWidgets.QLabel('Ringtone')
+        layout.addWidget(self.lblCall, 2, 0)
+        self.txtCustomRingtone = QtWidgets.QLineEdit()
+        layout.addWidget(self.txtCustomRingtone, 2, 1)
+        self.btnChooseRingtone = QtWidgets.QPushButton('...')
+        self.btnChooseRingtone.clicked.connect(self.clickChooseRingtone)
+        layout.addWidget(self.btnChooseRingtone, 2, 2)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Save|QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        layout.addWidget(self.buttonBox, 3, 0, 1, 3)
+        self.setLayout(layout)
+
+        # window properties
+        self.setWindowTitle('Add Phone Book Entry')
+
+        # center screen
+        qr = self.frameGeometry()
+        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+    def clickChooseRingtone(self, e):
+        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.txtCustomRingtone.text(), 'WAV Audio Files (*.wav);;')
+        if fileName: self.txtCustomRingtone.setText(fileName)
+
+    def accept(self):
+        self.mainWindow.phoneBook.append({
+            'displayName': self.txtName.text(),
+            'number': self.txtNumber.text(),
+            'ringtone': self.txtCustomRingtone.text()
+        })
+        self.mainWindow.tblPhoneBook.setData(self.mainWindow.phoneBook)
+        savePhoneBook(self.mainWindow.phoneBook)
+        self.close()
+
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def __init__(self, icon, parent):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
@@ -298,6 +354,42 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def exit(self):
         self.parentWidget.close()
         QtCore.QCoreApplication.exit()
+
+class PhoneBookTable(QtWidgets.QTableWidget):
+    keyPressed = QtCore.pyqtSignal(int)
+
+    def __init__(self, *args):
+        self.entries = {}
+        QtWidgets.QTableWidget.__init__(self, *args)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        #self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
+
+    def keyPressEvent(self, event):
+        super(PhoneBookTable, self).keyPressEvent(event)
+        if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
+
+    def setData(self, entries):
+        self.entries = entries
+        self.setRowCount(len(self.entries))
+        self.setColumnCount(2)
+
+        counter = 0
+        for entry in self.entries:
+            newItem = QtWidgets.QTableWidgetItem(entry['displayName'])
+            self.setItem(counter, 0, newItem)
+
+            newItem = QtWidgets.QTableWidgetItem(entry['number'])
+            self.setItem(counter, 1, newItem)
+
+            counter += 1
+
+        self.setHorizontalHeaderLabels([
+            QtWidgets.QApplication.translate('Jabber4Linux', 'Name'),
+            QtWidgets.QApplication.translate('Jabber4Linux', 'Number'),
+        ])
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
 
 class CallHistoryTable(QtWidgets.QTableWidget):
     keyPressed = QtCore.pyqtSignal(int)
@@ -429,6 +521,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ringtoneFile = settings.get('ringtone', os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav')
         super(MainWindow, self).__init__(*args, **kwargs)
         self.callHistory = loadCallHistory(True)
+        self.phoneBook = loadPhoneBook(True)
 
         # window layout
         grid = QtWidgets.QGridLayout()
@@ -446,20 +539,38 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblCall = QtWidgets.QLabel('Call')
         grid.addWidget(self.lblCall, 1, 0)
         self.txtCall = QtWidgets.QLineEdit()
-        self.txtCall.setPlaceholderText('Phone Number (type to search address book)')
+        self.txtCall.setPlaceholderText('Phone Number (type to search global address book)')
         grid.addWidget(self.txtCall, 1, 1)
         self.btnCall = QtWidgets.QPushButton('Call')
         self.btnCall.clicked.connect(self.clickCall)
         self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
 
-        self.lblHistory = QtWidgets.QLabel('History')
-        grid.addWidget(self.lblHistory, 2, 0)
         self.tblCalls = CallHistoryTable()
         self.tblCalls.setData(self.callHistory)
         self.tblCalls.keyPressed.connect(self.tblCallsKeyPressed)
         self.tblCalls.doubleClicked.connect(self.recallHistory)
-        grid.addWidget(self.tblCalls, 2, 1)
+
+        gridPhoneBook = QtWidgets.QGridLayout()
+        self.tblPhoneBook = PhoneBookTable()
+        self.tblPhoneBook.setData(self.phoneBook)
+        self.tblPhoneBook.keyPressed.connect(self.tblPhoneBookKeyPressed)
+        self.tblPhoneBook.doubleClicked.connect(self.callPhoneBook)
+        gridPhoneBook.addWidget(self.tblPhoneBook, 0, 0)
+        buttonBox = QtWidgets.QVBoxLayout()
+        self.btnAddPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Add'))
+        self.btnAddPhoneBookEntry.clicked.connect(self.addPhoneBookEntry)
+        buttonBox.addWidget(self.btnAddPhoneBookEntry)
+        buttonBox.addStretch(1)
+        gridPhoneBook.addLayout(buttonBox, 0, 1)
+        gridPhoneBook.setContentsMargins(0, 0, 0, 0)
+        widgetPhoneBook = QtWidgets.QWidget()
+        widgetPhoneBook.setLayout(gridPhoneBook)
+
+        tabHistoryPhoneBook = QtWidgets.QTabWidget()
+        tabHistoryPhoneBook.addTab(self.tblCalls, 'Call History')
+        tabHistoryPhoneBook.addTab(widgetPhoneBook, 'Local Address Book')
+        grid.addWidget(tabHistoryPhoneBook, 2, 0, 1, 3)
 
         widget = QtWidgets.QWidget(self)
         widget.setLayout(grid)
@@ -502,15 +613,19 @@ class MainWindow(QtWidgets.QMainWindow):
         inputDevicesMenu.setEnabled(False)
         outputDevicesMenu = audioMenu.addMenu('&Output Device')
         outputDevicesMenu.setEnabled(False)
+        audioMenu.addSeparator()
         ringtoneDevicesMenu = audioMenu.addMenu('&Ringtone Devices')
         ringtoneDevicesMenu.setEnabled(False)
+        chooseRingtoneAction = QtWidgets.QAction('&Choose Default Ringtone', self)
+        chooseRingtoneAction.triggered.connect(self.clickChooseRingtone)
+        audioMenu.addAction(chooseRingtoneAction)
+
+        with ignoreStderr(): audio = pyaudio.PyAudio()
+        info = audio.get_host_api_info_by_index(0)
         inputDevicesGroup = QtWidgets.QActionGroup(self)
         inputDevicesGroup.setExclusive(True)
         outputDevicesGroup = QtWidgets.QActionGroup(self)
         outputDevicesGroup.setExclusive(True)
-
-        with ignoreStderr(): audio = pyaudio.PyAudio()
-        info = audio.get_host_api_info_by_index(0)
         for i in range(0, info.get('deviceCount')):
             if(audio.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
                 deviceName = re.sub('[\(\[].*?[\)\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
@@ -539,7 +654,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # window properties
         self.setWindowTitle('Jabber4Linux')
-        self.resize(460, 260)
+        self.resize(440, 280)
         self.txtCall.setFocus()
         self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
@@ -580,6 +695,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = AboutWindow(self)
         dlg.exec_()
 
+    def clickChooseRingtone(self, e):
+        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.ringtoneFile, 'WAV Audio Files (*.wav);;')
+        if fileName: self.ringtoneFile = fileName
+
     def clickSetInput(self, deviceName, menuItem, e):
         self.inputDeviceName = deviceName
         self.sipHandler.inputDeviceName = deviceName
@@ -599,7 +718,12 @@ class MainWindow(QtWidgets.QMainWindow):
             if('number' in historyItem and historyItem['number'].strip() != ''):
                 self.sipHandler.call(historyItem['number'])
                 break
-
+    def callPhoneBook(self, e):
+        for row in sorted(self.tblPhoneBook.selectionModel().selectedRows()):
+            addressBookEntry = self.phoneBook[row.row()]
+            if('number' in addressBookEntry and addressBookEntry['number'].strip() != ''):
+                self.sipHandler.call(addressBookEntry['number'])
+                break
     def tblCallsKeyPressed(self, keyCode):
         if(keyCode == QtCore.Qt.Key_Delete):
             indices = self.tblCalls.selectionModel().selectedRows() 
@@ -609,6 +733,19 @@ class MainWindow(QtWidgets.QMainWindow):
             saveCallHistory(self.callHistory)
         if(keyCode == QtCore.Qt.Key_Return):
             self.recallHistory(None)
+    def tblPhoneBookKeyPressed(self, keyCode):
+        if(keyCode == QtCore.Qt.Key_Delete):
+            indices = self.tblPhoneBook.selectionModel().selectedRows() 
+            for index in sorted(indices, reverse=True):
+                del self.phoneBook[index.row()]
+            self.tblPhoneBook.setData(self.phoneBook)
+            savePhoneBook(self.phoneBook)
+        if(keyCode == QtCore.Qt.Key_Return):
+            self.callPhoneBook(None)
+
+    def addPhoneBookEntry(self, e):
+        dialog = PhoneBookEntryWindow(self)
+        dialog.exec_()
 
     CALL_HISTORY_OUTGOING = 1
     CALL_HISTORY_INCOMING = 2
@@ -692,7 +829,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
             try:
                 self.ringtonePlayer = AudioPlayer(
-                    self.ringtoneFile,
+                    self.getRingtoneFile(self.sipHandler.currentCall['number']),
                     self.sipHandler.audio,
                     self.ringtoneOutputDeviceNames
                 )
@@ -702,7 +839,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
             self.incomingCallWindow.show()
         elif(status == SipHandler.INCOMING_CALL_CANCELED):
-            self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING_MISSED)
             self.closeIncomingCallWindow()
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING)
@@ -715,7 +851,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def incomingCallWindowFinished(self, status):
         self.closeIncomingCallWindow()
-        if status == QtWidgets.QDialog.Accepted:
+        if(status == QtWidgets.QDialog.Accepted):
             self.sipHandler.acceptCall()
         else:
             self.sipHandler.rejectCall()
@@ -730,7 +866,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def clickCall(self, sender):
         numberStripped = self.txtCall.text().strip()
-        self.sipHandler.call(numberStripped)
+        if(numberStripped != ''): self.sipHandler.call(numberStripped)
 
     def evtOutgoingCallHandler(self, status, text):
         if(status == SipHandler.OUTGOING_CALL_TRYING):
@@ -740,7 +876,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.ringtonePlayer = AudioPlayer(
-                self.ringtoneFile,
+                self.getRingtoneFile(self.sipHandler.currentCall['number']),
                 self.sipHandler.audio,
                 self.ringtoneOutputDeviceNames
             )
@@ -774,6 +910,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtCallClosedHandler(self):
         self.callWindow.close()
 
+    def getRingtoneFile(self, number):
+        for entry in self.phoneBook:
+            if('number' in entry and entry['number'].strip().replace('+', '00') == number.strip().replace('+', '00')):
+                if('ringtone' in entry and os.path.isfile(entry['ringtone'])):
+                    return entry['ringtone']
+        return self.ringtoneFile
+
 def loadSettings(suppressError=False):
     try:
         with open(CFG_PATH) as f:
@@ -802,6 +945,21 @@ def saveCallHistory(settings):
             json.dump(settings, json_file, indent=4)
     except Exception as e:
         showErrorDialog('Error saving history file', str(e))
+
+def loadPhoneBook(suppressError=False):
+    try:
+        with open(PHONEBOOK_PATH) as f:
+            return json.load(f)
+    except Exception as e:
+        if(not suppressError): showErrorDialog('Error loading phone book file', str(e))
+        return []
+def savePhoneBook(settings):
+    try:
+        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        with open(PHONEBOOK_PATH, 'w') as json_file:
+            json.dump(settings, json_file, indent=4)
+    except Exception as e:
+        showErrorDialog('Error saving phone book file', str(e))
 
 # main entry point
 if __name__ == '__main__':

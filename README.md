@@ -12,6 +12,7 @@ What it can:
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU, Opus (HD telephony)
 - company phone book search
+- local address book with option to set custom ringtones per contact
 
 What (currently) doesn't:
 - input/output audio device (headset) and ringtone devices selection
