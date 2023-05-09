@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Exit on error
+set -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+# install modules which are not available in the Debian/Ubuntu repos
+pip3 install --upgrade PyAudio opuslib
+
+update-desktop-database
