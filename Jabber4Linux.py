@@ -499,8 +499,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # Audio Menu
         audioMenu = mainMenu.addMenu('&Audio')
         inputDevicesMenu = audioMenu.addMenu('&Input Device')
+        inputDevicesMenu.setEnabled(False)
         outputDevicesMenu = audioMenu.addMenu('&Output Device')
+        outputDevicesMenu.setEnabled(False)
         ringtoneDevicesMenu = audioMenu.addMenu('&Ringtone Devices')
+        ringtoneDevicesMenu.setEnabled(False)
         inputDevicesGroup = QtWidgets.QActionGroup(self)
         inputDevicesGroup.setExclusive(True)
         outputDevicesGroup = QtWidgets.QActionGroup(self)

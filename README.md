@@ -11,10 +11,10 @@ What it can:
   - optional: force registration (disconnect an other client which is already active and holds the line)
 - initiate and accept calls
 - realtime de-/encoding of RTP packets with codecs: PCMA, PCMU, Opus (HD telephony)
-- input/output audio device (headset) and ringtone devices selection
 - company phone book search
 
 What (currently) doesn't:
+- input/output audio device (headset) and ringtone devices selection
 - presence / instant messaging
 - voice mail access
 - conference features
