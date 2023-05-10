@@ -12,13 +12,17 @@ fi
 # cd to working dir
 cd "$(dirname "$0")"
 
-# create necessary directories
-mkdir -p jabber4linux/usr/share/jabber4linux
+# empty / create necessary directories
+if [ -d "jabber4linux/usr/share/jabber4linux" ]; then
+	rm -r jabber4linux/usr/share/jabber4linux
+fi
+mkdir -p jabber4linux/usr/share/jabber4linux/assets
 
 # copy files in place
+cp ../../assets/*.desktop jabber4linux/usr/share/applications
 cp ../../*.py jabber4linux/usr/share/jabber4linux
-cp ../../*.svg jabber4linux/usr/share/jabber4linux
-cp ../../*.wav jabber4linux/usr/share/jabber4linux
+cp ../../assets/*.svg jabber4linux/usr/share/jabber4linux/assets
+cp ../../assets/*.wav jabber4linux/usr/share/jabber4linux/assets
 cp ../../README.md jabber4linux/usr/share/jabber4linux
 cp ../../LICENSE jabber4linux/usr/share/jabber4linux
 

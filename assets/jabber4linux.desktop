@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Jabber4Linux
+Exec=/usr/share/jabber4linux/Jabber4Linux.py
+Terminal=false
+MimeType=x-scheme-handler/tel;
+Icon=/usr/share/jabber4linux/assets/tux-phone.svg
+Categories=Application;Utility
+Comment=Linux implementation of Cisco Jabber.
+
+# execute `update-desktop-database` after copying into /usr/share/applications

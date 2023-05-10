@@ -87,7 +87,6 @@ class AboutWindow(QtWidgets.QDialog):
 
         self.setLayout(self.layout)
         self.setWindowTitle('About')
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
 class LoginWindow(QtWidgets.QDialog):
     def __init__(self, debug=False, *args, **kwargs):
@@ -133,7 +132,6 @@ class LoginWindow(QtWidgets.QDialog):
         self.setWindowTitle('Jabber4Linux Login')
         self.resize(350, 150)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -189,7 +187,6 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -218,7 +215,6 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -252,7 +248,6 @@ class CallWindow(QtWidgets.QDialog):
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
 
         # center screen
         qr = self.frameGeometry()
@@ -297,6 +292,8 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.lblCall = QtWidgets.QLabel('Ringtone')
         layout.addWidget(self.lblCall, 2, 0)
         self.txtCustomRingtone = QtWidgets.QLineEdit()
+        self.txtCustomRingtone.setPlaceholderText('(optional)')
+        self.txtCustomRingtone.setEnabled(False)
         layout.addWidget(self.txtCustomRingtone, 2, 1)
         self.btnChooseRingtone = QtWidgets.QPushButton('...')
         self.btnChooseRingtone.clicked.connect(self.clickChooseRingtone)
@@ -350,6 +347,8 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
     def open(self):
         self.parentWidget.show()
+        if(self.parentWindow.status == MainWindow.STATUS_NOTIFY):
+            self.parentWidget.setTrayIcon(MainWindow.STATUS_OK)
 
     def exit(self):
         self.parentWidget.close()
@@ -406,6 +405,17 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
 
     def setData(self, calls):
+        darkMode = (self.palette().color(QtGui.QPalette.Background).red() < 100
+            and self.palette().color(QtGui.QPalette.Background).green() < 100
+            and self.palette().color(QtGui.QPalette.Background).blue() < 100)
+        if(darkMode):
+            self.iconIncoming = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.light.svg')
+            self.iconOutgoing = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.light.svg')
+        else:
+            self.iconIncoming = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.svg')
+            self.iconOutgoing = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.svg')
+        self.iconIncomingMissed = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.missed.svg')
+
         self.calls = calls
         self.setRowCount(len(self.calls))
         self.setColumnCount(3)
@@ -415,12 +425,15 @@ class CallHistoryTable(QtWidgets.QTableWidget):
             color = None
 
             if(('type' in call and call['type'] == MainWindow.CALL_HISTORY_OUTGOING) or ('incoming' in call and not call['incoming'])):
-                newItem = QtWidgets.QTableWidgetItem('<')
+                newItem = QtWidgets.QTableWidgetItem()
+                newItem.setIcon(self.iconOutgoing)
             elif(('type' in call and call['type'] == MainWindow.CALL_HISTORY_INCOMING) or ('incoming' in call and call['incoming'])):
-                newItem = QtWidgets.QTableWidgetItem('>')
+                newItem = QtWidgets.QTableWidgetItem()
+                newItem.setIcon(self.iconIncoming)
             elif('type' in call and call['type'] == MainWindow.CALL_HISTORY_INCOMING_MISSED):
-                color = QtGui.QColor(255, 0, 0)
-                newItem = QtWidgets.QTableWidgetItem('>')
+                color = QtGui.QColor(250, 20, 20)
+                newItem = QtWidgets.QTableWidgetItem()
+                newItem.setIcon(self.iconIncomingMissed)
                 if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 0, newItem)
 
@@ -522,6 +535,13 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.callHistory = loadCallHistory(True)
         self.phoneBook = loadPhoneBook(True)
+        self.status = self.STATUS_FAIL
+
+        # icons
+        self.iconApplication = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/tux-phone.svg')
+        self.iconTrayNormal = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
+        self.iconTrayNotification = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
+        self.iconTrayFail = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-fail.svg')
 
         # window layout
         grid = QtWidgets.QGridLayout()
@@ -558,9 +578,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tblPhoneBook.doubleClicked.connect(self.callPhoneBook)
         gridPhoneBook.addWidget(self.tblPhoneBook, 0, 0)
         buttonBox = QtWidgets.QVBoxLayout()
-        self.btnAddPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Add'))
-        self.btnAddPhoneBookEntry.clicked.connect(self.addPhoneBookEntry)
-        buttonBox.addWidget(self.btnAddPhoneBookEntry)
+        btnAddPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Add'))
+        btnAddPhoneBookEntry.clicked.connect(self.addPhoneBookEntry)
+        buttonBox.addWidget(btnAddPhoneBookEntry)
+        btnDelPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Remove'))
+        btnDelPhoneBookEntry.clicked.connect(self.delPhoneBookEntry)
+        buttonBox.addWidget(btnDelPhoneBookEntry)
         buttonBox.addStretch(1)
         gridPhoneBook.addLayout(buttonBox, 0, 1)
         gridPhoneBook.setContentsMargins(0, 0, 0, 0)
@@ -656,7 +679,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle('Jabber4Linux')
         self.resize(440, 280)
         self.txtCall.setFocus()
-        self.setWindowIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/tux-phone.svg'))
+        self.setWindowIcon(self.iconApplication)
 
         # center screen
         qr = self.frameGeometry()
@@ -735,17 +758,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.recallHistory(None)
     def tblPhoneBookKeyPressed(self, keyCode):
         if(keyCode == QtCore.Qt.Key_Delete):
-            indices = self.tblPhoneBook.selectionModel().selectedRows() 
-            for index in sorted(indices, reverse=True):
-                del self.phoneBook[index.row()]
-            self.tblPhoneBook.setData(self.phoneBook)
-            savePhoneBook(self.phoneBook)
+            self.delPhoneBookEntry(None)
         if(keyCode == QtCore.Qt.Key_Return):
             self.callPhoneBook(None)
 
     def addPhoneBookEntry(self, e):
         dialog = PhoneBookEntryWindow(self)
         dialog.exec_()
+    def delPhoneBookEntry(self, e):
+        indices = self.tblPhoneBook.selectionModel().selectedRows() 
+        for index in sorted(indices, reverse=True):
+            del self.phoneBook[index.row()]
+        self.tblPhoneBook.setData(self.phoneBook)
+        savePhoneBook(self.phoneBook)
 
     CALL_HISTORY_OUTGOING = 1
     CALL_HISTORY_INCOMING = 2
@@ -756,13 +781,14 @@ class MainWindow(QtWidgets.QMainWindow):
         saveCallHistory(self.callHistory)
 
     STATUS_OK = 0
-    STATUS_FAIL = 1
+    STATUS_NOTIFY = 1
+    STATUS_FAIL = 2
     def setTrayIcon(self, status):
+        self.status = status
         newIcon = None
-        if(status == 0):
-            newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone.svg')
-        else:
-            newIcon = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/phone-fail.svg')
+        if(status == self.STATUS_OK): newIcon = self.iconTrayNormal
+        elif(status == self.STATUS_NOTIFY): newIcon = self.iconTrayNotification
+        else: newIcon = self.iconTrayFail
         self.trayIcon.setIcon(newIcon)
 
     def clickRegister(self, e):
@@ -840,6 +866,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.incomingCallWindow.show()
         elif(status == SipHandler.INCOMING_CALL_CANCELED):
             self.closeIncomingCallWindow()
+            self.setTrayIcon(self.STATUS_NOTIFY)
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING)
             self.closeIncomingCallWindow()
