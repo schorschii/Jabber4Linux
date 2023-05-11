@@ -17,6 +17,7 @@ if [ -d "jabber4linux/usr/share/jabber4linux" ]; then
 	rm -r jabber4linux/usr/share/jabber4linux
 fi
 mkdir -p jabber4linux/usr/share/jabber4linux/assets
+mkdir -p jabber4linux/usr/share/applications
 
 # copy files in place
 cp ../../assets/*.desktop jabber4linux/usr/share/applications
