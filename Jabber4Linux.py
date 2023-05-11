@@ -347,7 +347,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
     def open(self):
         self.parentWidget.show()
-        if(self.parentWindow.status == MainWindow.STATUS_NOTIFY):
+        if(self.parentWidget.status == MainWindow.STATUS_NOTIFY):
             self.parentWidget.setTrayIcon(MainWindow.STATUS_OK)
 
     def exit(self):
@@ -540,7 +540,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # icons
         self.iconApplication = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/tux-phone.svg')
         self.iconTrayNormal = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
-        self.iconTrayNotification = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
+        self.iconTrayNotification = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-notification.svg')
         self.iconTrayFail = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-fail.svg')
 
         # window layout
