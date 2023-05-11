@@ -11,13 +11,14 @@ from Tools import ignoreStderr, niceTime
 
 from functools import partial
 from pathlib import Path
-from threading import Timer
+from threading import Thread, Timer
 import datetime
 import pyaudio
 import time
 import argparse
 import json
 import re
+import socket
 import sys, os
 import traceback
 
@@ -504,6 +505,30 @@ class PhoneBookSearchCompleter(QtWidgets.QCompleter):
     #def applySuggestion(self, index):
     #    self.mainWindow.txtCall.setText(self.model().item(index.row(), 0).number)
 
+class IpcObserver(Thread):
+    IPC_PORT = 6666
+
+    evtIpcMessageReceived = None
+
+    def __init__(self, *args, **kwargs):
+        super(IpcObserver, self).__init__(*args, **kwargs)
+        self.daemon = True
+        try:
+            self.ipcSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.ipcSock.bind(('localhost', self.IPC_PORT))
+            self.ipcSock.listen()
+        except Exception as e:
+            print('Unable to setup IPC socket:', e)
+            self.ipcSock = None
+
+    def run(self, *args, **kwargs):
+        if(not self.ipcSock): return
+        while True:
+            conn, address = self.ipcSock.accept()
+            with conn:
+                data = conn.recv(512)
+                if(data): self.evtIpcMessageReceived.emit(data.decode('utf-8').strip())
+
 class MainWindow(QtWidgets.QMainWindow):
     user = None
     devices = None
@@ -522,8 +547,9 @@ class MainWindow(QtWidgets.QMainWindow):
     evtIncomingCall = QtCore.pyqtSignal(int)
     evtOutgoingCall = QtCore.pyqtSignal(int, str)
     evtCallClosed = QtCore.pyqtSignal()
+    evtIpcMessageReceived = QtCore.pyqtSignal(str)
 
-    def __init__(self, settings, debug=False, *args, **kwargs):
+    def __init__(self, settings, presetNumber=None, debug=False, *args, **kwargs):
         self.debug = debug
         self.user = settings['user']
         self.devices = settings['devices']
@@ -560,6 +586,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblCall = QtWidgets.QLabel('Call')
         grid.addWidget(self.lblCall, 1, 0)
         self.txtCall = QtWidgets.QLineEdit()
+        if(presetNumber): self.txtCall.setText(presetNumber)
         self.txtCall.setPlaceholderText('Phone Number (type to search global address book)')
         grid.addWidget(self.txtCall, 1, 1)
         self.btnCall = QtWidgets.QPushButton('Call')
@@ -605,6 +632,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.evtIncomingCall.connect(self.evtIncomingCallHandler)
         self.evtOutgoingCall.connect(self.evtOutgoingCallHandler)
         self.evtCallClosed.connect(self.evtCallClosedHandler)
+        self.evtIpcMessageReceived.connect(self.evtIpcMessageReceivedHandler)
 
         # init QCompleter for phone book search
         try:
@@ -693,6 +721,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setTrayIcon(self.STATUS_FAIL)
         self.trayIcon.show()
 
+        # init IPC server socket
+        self.ipcObserver = IpcObserver()
+        self.ipcObserver.evtIpcMessageReceived = self.evtIpcMessageReceived
+        self.ipcObserver.start()
+
         # start SIP registration
         self.initSipSession(self.sltPhone.currentIndex())
 
@@ -718,6 +751,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def clickAboutDialog(self, e):
         dlg = AboutWindow(self)
         dlg.exec_()
+
+    def evtIpcMessageReceivedHandler(self, message):
+        if(message.strip() != ''):
+            self.show()
+            self.txtCall.setText(message)
+            self.txtCall.selectAll()
+            self.txtCall.setFocus()
 
     def clickChooseRingtone(self, e):
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.ringtoneFile, 'WAV Audio Files (*.wav);;')
@@ -995,7 +1035,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--hidden', action='store_true', help='Start with tray icon only (for autostart)')
     parser.add_argument('-v', '--debug', action='store_true', help='Print debug output (SIP packet contents etc.)')
-    args = parser.parse_args()
+    args, unknownargs = parser.parse_known_args()
+    presetNumber = None
+    if(len(unknownargs) > 0 and unknownargs[0].startswith('tel:')):
+        presetNumber = unknownargs[0].strip().split(':')[1].replace('+', '00')
+
+    # if a number was given, we check if an instance is already running and forward the number to its MainWindow
+    if(presetNumber):
+        try:
+            ipcConn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            ipcConn.connect(('localhost', IpcObserver.IPC_PORT))
+            ipcConn.sendall(str.encode(presetNumber))
+            ipcConn.close()
+            print('An instance is already running. Since a phone number was given as parameter, the number will be forwarded to the other instance and this instance will be closed immediately.')
+            sys.exit(0)
+        except Exception as e:
+            # exception is thrown when connection to other instance could not be established - this will start a new instance regularly
+            pass
 
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
@@ -1004,7 +1060,7 @@ if __name__ == '__main__':
     settings = loadSettings(True)
     if settings != None and 'user' in settings and 'devices' in settings and len(settings['devices']) > 0:
         # directly start main window if login already done
-        window = MainWindow(settings, debug=args.debug)
+        window = MainWindow(settings, presetNumber=presetNumber, debug=args.debug)
         if not args.hidden: window.show()
         sys.exit(app.exec_())
     else:
