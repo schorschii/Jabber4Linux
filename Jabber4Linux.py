@@ -531,7 +531,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ringtoneOutputDeviceNames = settings.get('ringtone-devices', [])
         self.inputDeviceName = settings.get('input-device', None)
         self.outputDeviceName = settings.get('output-device', None)
-        self.ringtoneFile = settings.get('ringtone', os.path.dirname(os.path.realpath(__file__))+'/ringelingeling.wav')
+        self.defaultRingtoneFile = os.path.dirname(os.path.realpath(__file__))+'/assets/ringelingeling.wav'
+        self.ringtoneFile = settings.get('ringtone', self.defaultRingtoneFile)
         super(MainWindow, self).__init__(*args, **kwargs)
         self.callHistory = loadCallHistory(True)
         self.phoneBook = loadPhoneBook(True)
@@ -854,12 +855,7 @@ class MainWindow(QtWidgets.QMainWindow):
             diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
             self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
             try:
-                self.ringtonePlayer = AudioPlayer(
-                    self.getRingtoneFile(self.sipHandler.currentCall['number']),
-                    self.sipHandler.audio,
-                    self.ringtoneOutputDeviceNames
-                )
-                self.ringtonePlayer.start()
+                self.startRingtone(self.sipHandler.currentCall['number'])
             except Exception as e:
                 print('!!! ringtone error: '+str(e))
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
@@ -902,13 +898,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.outgoingCallWindow.show()
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
-            self.ringtonePlayer = AudioPlayer(
-                self.getRingtoneFile(self.sipHandler.currentCall['number']),
-                self.sipHandler.audio,
-                self.ringtoneOutputDeviceNames
-            )
-            self.ringtonePlayer.start()
             self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], MainWindow.CALL_HISTORY_OUTGOING)
+            self.startRingtone(self.sipHandler.currentCall['number'])
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
@@ -938,11 +929,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.callWindow.close()
 
     def getRingtoneFile(self, number):
-        for entry in self.phoneBook:
-            if('number' in entry and entry['number'].strip().replace('+', '00') == number.strip().replace('+', '00')):
-                if('ringtone' in entry and os.path.isfile(entry['ringtone'])):
-                    return entry['ringtone']
-        return self.ringtoneFile
+        if(number):
+            for entry in self.phoneBook:
+                if('number' in entry and entry['number'].strip().replace('+', '00') == number.strip().replace('+', '00')):
+                    if('ringtone' in entry and os.path.isfile(entry['ringtone'])):
+                        return entry['ringtone']
+        if(os.path.isfile(self.ringtoneFile)):
+            return self.ringtoneFile
+        return self.defaultRingtoneFile
+    def startRingtone(self, number):
+        self.ringtonePlayer = AudioPlayer(
+            self.getRingtoneFile(number),
+            self.sipHandler.audio,
+            self.ringtoneOutputDeviceNames
+        )
+        self.ringtonePlayer.start()
 
 def loadSettings(suppressError=False):
     try:
