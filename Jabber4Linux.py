@@ -309,12 +309,6 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle('Add Phone Book Entry')
 
-        # center screen
-        qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
     def clickChooseRingtone(self, e):
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.txtCustomRingtone.text(), 'WAV Audio Files (*.wav);;')
         if fileName: self.txtCustomRingtone.setText(fileName)
