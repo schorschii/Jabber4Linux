@@ -12,6 +12,7 @@ from Tools import ignoreStderr, niceTime
 from functools import partial
 from pathlib import Path
 from threading import Thread, Timer
+from locale import getdefaultlocale
 import datetime
 import pyaudio
 import time
@@ -23,6 +24,7 @@ import sys, os
 import traceback
 
 
+PRODUCT_NAME = 'Jabber4Linux'
 PRODUCT_VERSION = '0.1'
 
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
@@ -30,6 +32,9 @@ CFG_PATH = CFG_DIR+'/settings.json'
 HISTORY_PATH = CFG_DIR+'/history.json'
 PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
 
+
+def translate(text):
+    return QtWidgets.QApplication.translate(PRODUCT_NAME, text)
 
 def showErrorDialog(title, text, additionalText=''):
     print('Error: '+text)
@@ -51,7 +56,7 @@ class AboutWindow(QtWidgets.QDialog):
         self.layout = QtWidgets.QVBoxLayout(self)
 
         labelAppName = QtWidgets.QLabel(self)
-        labelAppName.setText('Jabber4Linux' + ' v' + PRODUCT_VERSION)
+        labelAppName.setText(PRODUCT_NAME + ' v' + PRODUCT_VERSION)
         labelAppName.setStyleSheet('font-weight:bold')
         labelAppName.setAlignment(QtCore.Qt.AlignCenter)
         self.layout.addWidget(labelAppName)
@@ -76,7 +81,7 @@ class AboutWindow(QtWidgets.QDialog):
 
         labelDescription = QtWidgets.QLabel(self)
         labelDescription.setText(
-            'Jabber4Linux is a unofficial Cisco Jabber port for Linux.'
+            translate('Jabber4Linux is a unofficial Cisco Jabber port for Linux.')
         )
         labelDescription.setStyleSheet('opacity:0.8')
         labelDescription.setFixedWidth(450)
@@ -102,25 +107,25 @@ class LoginWindow(QtWidgets.QDialog):
         self.layout = QtWidgets.QGridLayout(self)
 
         discoveredServer = UdsWrapper.discoverUdsServer(None)
-        self.lblServerName = QtWidgets.QLabel('Server')
+        self.lblServerName = QtWidgets.QLabel(translate('Server'))
         self.layout.addWidget(self.lblServerName, 0, 0)
 
         self.txtServerName = QtWidgets.QLineEdit()
-        self.txtServerName.setPlaceholderText('Address')
+        self.txtServerName.setPlaceholderText(translate('Address'))
         if discoveredServer != None: self.txtServerName.setText(discoveredServer['address'])
         self.layout.addWidget(self.txtServerName, 0, 1)
 
         self.txtServerPort = QtWidgets.QLineEdit()
-        self.txtServerPort.setPlaceholderText('Port')
+        self.txtServerPort.setPlaceholderText(translate('Port'))
         if discoveredServer != None: self.txtServerPort.setText(str(discoveredServer['port']))
         self.layout.addWidget(self.txtServerPort, 0, 2)
 
-        self.lblUsername = QtWidgets.QLabel('Username')
+        self.lblUsername = QtWidgets.QLabel(translate('Username'))
         self.layout.addWidget(self.lblUsername, 1, 0)
         self.txtUsername = QtWidgets.QLineEdit()
         self.layout.addWidget(self.txtUsername, 1, 1, 1, 2)
 
-        self.lblPassword = QtWidgets.QLabel('Password')
+        self.lblPassword = QtWidgets.QLabel(translate('Password'))
         self.layout.addWidget(self.lblPassword, 2, 0)
         self.txtPassword = QtWidgets.QLineEdit()
         self.txtPassword.setEchoMode(QtWidgets.QLineEdit.Password)
@@ -130,7 +135,7 @@ class LoginWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle('Jabber4Linux Login')
+        self.setWindowTitle(PRODUCT_NAME + translate('Login'))
         self.resize(350, 150)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
 
@@ -162,7 +167,7 @@ class LoginWindow(QtWidgets.QDialog):
             self.accept()
         except Exception as e:
             print(traceback.format_exc())
-            showErrorDialog('Login Error', str(e))
+            showErrorDialog(translate('Login Error'), str(e))
 
 class IncomingCallWindow(QtWidgets.QDialog):
     def __init__(self, callerText, diversionText, *args, **kwargs):
@@ -184,7 +189,7 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle('Incoming Call')
+        self.setWindowTitle(translate('Incoming Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
@@ -212,7 +217,7 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle('Outgoing Call')
+        self.setWindowTitle(translate('Outgoing Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
@@ -245,7 +250,7 @@ class CallWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle('Call')
+        self.setWindowTitle(translate('Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
@@ -280,20 +285,20 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         # window layout
         layout = QtWidgets.QGridLayout()
 
-        self.lblCall = QtWidgets.QLabel('Name')
+        self.lblCall = QtWidgets.QLabel(translate('Name'))
         layout.addWidget(self.lblCall, 0, 0)
         self.txtName = QtWidgets.QLineEdit()
         layout.addWidget(self.txtName, 0, 1)
 
-        self.lblCall = QtWidgets.QLabel('Number')
+        self.lblCall = QtWidgets.QLabel(translate('Number'))
         layout.addWidget(self.lblCall, 1, 0)
         self.txtNumber = QtWidgets.QLineEdit()
         layout.addWidget(self.txtNumber, 1, 1)
 
-        self.lblCall = QtWidgets.QLabel('Ringtone')
+        self.lblCall = QtWidgets.QLabel(translate('Ringtone'))
         layout.addWidget(self.lblCall, 2, 0)
         self.txtCustomRingtone = QtWidgets.QLineEdit()
-        self.txtCustomRingtone.setPlaceholderText('(optional)')
+        self.txtCustomRingtone.setPlaceholderText(translate('(optional)'))
         self.txtCustomRingtone.setEnabled(False)
         layout.addWidget(self.txtCustomRingtone, 2, 1)
         self.btnChooseRingtone = QtWidgets.QPushButton('...')
@@ -307,10 +312,10 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.setLayout(layout)
 
         # window properties
-        self.setWindowTitle('Add Phone Book Entry')
+        self.setWindowTitle(translate('Add Phone Book Entry'))
 
     def clickChooseRingtone(self, e):
-        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.txtCustomRingtone.text(), 'WAV Audio Files (*.wav);;')
+        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, translate('Ringtone File'), self.txtCustomRingtone.text(), 'WAV Audio Files (*.wav);;')
         if fileName: self.txtCustomRingtone.setText(fileName)
 
     def accept(self):
@@ -328,13 +333,13 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
         self.parentWidget = parent
         menu = QtWidgets.QMenu(parent)
-        openAction = menu.addAction('Open Jabber4Linux')
+        openAction = menu.addAction(translate('Open Jabber4Linux'))
         openAction.triggered.connect(self.open)
-        exitAction = menu.addAction('Exit')
+        exitAction = menu.addAction(translate('Exit'))
         exitAction.triggered.connect(self.exit)
         self.setContextMenu(menu)
         self.activated.connect(self.showMenuOnTrigger)
-        self.setToolTip('Jabber4Linux')
+        self.setToolTip(PRODUCT_NAME)
 
     def showMenuOnTrigger(self, reason):
         if(reason == QtWidgets.QSystemTrayIcon.Trigger):
@@ -379,8 +384,8 @@ class PhoneBookTable(QtWidgets.QTableWidget):
             counter += 1
 
         self.setHorizontalHeaderLabels([
-            QtWidgets.QApplication.translate('Jabber4Linux', 'Name'),
-            QtWidgets.QApplication.translate('Jabber4Linux', 'Number'),
+            translate('Name'),
+            translate('Number'),
         ])
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
@@ -444,8 +449,8 @@ class CallHistoryTable(QtWidgets.QTableWidget):
 
         self.setHorizontalHeaderLabels([
             '', # direction column (< or >)
-            QtWidgets.QApplication.translate('Jabber4Linux', 'Remote Party'),
-            QtWidgets.QApplication.translate('Jabber4Linux', 'Date')
+            translate('Remote Party'),
+            translate('Date')
         ])
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
@@ -567,7 +572,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # window layout
         grid = QtWidgets.QGridLayout()
 
-        self.lblPhone = QtWidgets.QLabel('Line')
+        self.lblPhone = QtWidgets.QLabel(translate('Line'))
         grid.addWidget(self.lblPhone, 0, 0)
         self.sltPhone = QtWidgets.QComboBox()
         for device in self.devices:
@@ -577,13 +582,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblRegistrationStatus = QtWidgets.QLabel('...')
         grid.addWidget(self.lblRegistrationStatus, 0, 2)
 
-        self.lblCall = QtWidgets.QLabel('Call')
+        self.lblCall = QtWidgets.QLabel(translate('Call'))
         grid.addWidget(self.lblCall, 1, 0)
         self.txtCall = QtWidgets.QLineEdit()
         if(presetNumber): self.txtCall.setText(presetNumber)
-        self.txtCall.setPlaceholderText('Phone Number (type to search global address book)')
+        self.txtCall.setPlaceholderText(translate('Phone Number (type to search global address book)'))
         grid.addWidget(self.txtCall, 1, 1)
-        self.btnCall = QtWidgets.QPushButton('Call')
+        self.btnCall = QtWidgets.QPushButton(translate('Call!'))
         self.btnCall.clicked.connect(self.clickCall)
         self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
@@ -600,10 +605,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tblPhoneBook.doubleClicked.connect(self.callPhoneBook)
         gridPhoneBook.addWidget(self.tblPhoneBook, 0, 0)
         buttonBox = QtWidgets.QVBoxLayout()
-        btnAddPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Add'))
+        btnAddPhoneBookEntry = QtWidgets.QPushButton(translate('Add'))
         btnAddPhoneBookEntry.clicked.connect(self.addPhoneBookEntry)
         buttonBox.addWidget(btnAddPhoneBookEntry)
-        btnDelPhoneBookEntry = QtWidgets.QPushButton(QtWidgets.QApplication.translate('Jabber4Linux', 'Remove'))
+        btnDelPhoneBookEntry = QtWidgets.QPushButton(translate('Remove'))
         btnDelPhoneBookEntry.clicked.connect(self.delPhoneBookEntry)
         buttonBox.addWidget(btnDelPhoneBookEntry)
         buttonBox.addStretch(1)
@@ -613,8 +618,8 @@ class MainWindow(QtWidgets.QMainWindow):
         widgetPhoneBook.setLayout(gridPhoneBook)
 
         tabHistoryPhoneBook = QtWidgets.QTabWidget()
-        tabHistoryPhoneBook.addTab(self.tblCalls, 'Call History')
-        tabHistoryPhoneBook.addTab(widgetPhoneBook, 'Local Address Book')
+        tabHistoryPhoneBook.addTab(self.tblCalls, translate('Call History'))
+        tabHistoryPhoneBook.addTab(widgetPhoneBook, translate('Local Address Book'))
         grid.addWidget(tabHistoryPhoneBook, 2, 0, 1, 3)
 
         widget = QtWidgets.QWidget(self)
@@ -641,28 +646,28 @@ class MainWindow(QtWidgets.QMainWindow):
         mainMenu = self.menuBar()
 
         # File Menu
-        fileMenu = mainMenu.addMenu('&File')
+        fileMenu = mainMenu.addMenu(translate('&File'))
 
-        registerAction = QtWidgets.QAction('&Register', self)
+        registerAction = QtWidgets.QAction(translate('&Register'), self)
         registerAction.triggered.connect(self.clickRegister)
         fileMenu.addAction(registerAction)
 
         fileMenu.addSeparator()
-        quitAction = QtWidgets.QAction('&Quit', self)
+        quitAction = QtWidgets.QAction(translate('&Quit'), self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.triggered.connect(self.clickQuit)
         fileMenu.addAction(quitAction)
 
         # Audio Menu
-        audioMenu = mainMenu.addMenu('&Audio')
-        inputDevicesMenu = audioMenu.addMenu('&Input Device')
+        audioMenu = mainMenu.addMenu(translate('&Audio'))
+        inputDevicesMenu = audioMenu.addMenu(translate('&Input Device'))
         inputDevicesMenu.setEnabled(False)
-        outputDevicesMenu = audioMenu.addMenu('&Output Device')
+        outputDevicesMenu = audioMenu.addMenu(translate('&Output Device'))
         outputDevicesMenu.setEnabled(False)
         audioMenu.addSeparator()
-        ringtoneDevicesMenu = audioMenu.addMenu('&Ringtone Devices')
+        ringtoneDevicesMenu = audioMenu.addMenu(translate('&Ringtone Devices'))
         ringtoneDevicesMenu.setEnabled(False)
-        chooseRingtoneAction = QtWidgets.QAction('&Choose Default Ringtone', self)
+        chooseRingtoneAction = QtWidgets.QAction(translate('&Choose Default Ringtone'), self)
         chooseRingtoneAction.triggered.connect(self.clickChooseRingtone)
         audioMenu.addAction(chooseRingtoneAction)
 
@@ -691,15 +696,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 ringtoneDevicesMenu.addAction(ringtoneDeviceAction)
 
         # Help Menu
-        helpMenu = mainMenu.addMenu('&Help')
+        helpMenu = mainMenu.addMenu(translate('&Help'))
 
-        aboutAction = QtWidgets.QAction('&About', self)
+        aboutAction = QtWidgets.QAction(translate('&About'), self)
         aboutAction.setShortcut('F1')
         aboutAction.triggered.connect(self.clickAboutDialog)
         helpMenu.addAction(aboutAction)
 
         # window properties
-        self.setWindowTitle('Jabber4Linux')
+        self.setWindowTitle(PRODUCT_NAME)
         self.resize(440, 280)
         self.txtCall.setFocus()
         self.setWindowIcon(self.iconApplication)
@@ -754,7 +759,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.txtCall.setFocus()
 
     def clickChooseRingtone(self, e):
-        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, QtWidgets.QApplication.translate('Jabber4Linux', 'Ringtone File'), self.ringtoneFile, 'WAV Audio Files (*.wav);;')
+        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, translate('Ringtone File'), self.ringtoneFile, 'WAV Audio Files (*.wav);;')
         if fileName: self.ringtoneFile = fileName
 
     def clickSetInput(self, deviceName, menuItem, e):
@@ -865,28 +870,28 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtRegistrationStatusChangedHandler(self, status, text):
         self.lblRegistrationStatus.setToolTip(text)
         if(status == SipHandler.REGISTRATION_REGISTERED):
-            self.lblRegistrationStatus.setText('OK!')
+            self.lblRegistrationStatus.setText(translate('OK!'))
             self.setTrayIcon(self.STATUS_OK)
         else:
-            self.lblRegistrationStatus.setText('FAILED!')
+            self.lblRegistrationStatus.setText(translate('FAILED!'))
             self.setTrayIcon(self.STATUS_FAIL)
 
             # option to take over other sessions
             if(status == SipHandler.REGISTRATION_ALREADY_ACTIVE):
                 msg = QtWidgets.QMessageBox()
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
-                msg.setWindowTitle(QtWidgets.QApplication.translate('Jabber4Linux', 'Force Registration?'))
-                msg.setText(QtWidgets.QApplication.translate('Jabber4Linux', 'Your phone is already connected with another softphone instance. Do you want to disconnect the other softphone?'))
+                msg.setWindowTitle(translate('Force Registration?'))
+                msg.setText(translate('Your phone is already connected with another softphone instance. Do you want to disconnect the other softphone?'))
                 msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
                 if(msg.exec_() == QtWidgets.QMessageBox.Ok):
                     self.initSipSession(self.sltPhone.currentIndex(), True)
             else:
-                showErrorDialog('Registration Error', text)
+                showErrorDialog(translate('Registration Error'), text)
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
-            diversionText = ('Forwarded for: '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
+            diversionText = (translate('Forwarded for: ')+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
             self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
             try:
                 self.startRingtone(self.sipHandler.currentCall['number'])
@@ -904,7 +909,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
         else:
-            showErrorDialog('Incoming Call Failed', str(status))
+            showErrorDialog(translate('Incoming Call Failed'), str(status))
 
     def incomingCallWindowFinished(self, status):
         self.closeIncomingCallWindow()
@@ -941,7 +946,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.callWindow.show()
         else:
             self.closeOutgoingCallWindow()
-            showErrorDialog('Outgoing Call Failed', str(text))
+            showErrorDialog(translate('Outgoing Call Failed'), str(text))
 
     def outgoingCallWindowFinished(self, status):
         self.closeOutgoingCallWindow()
@@ -984,21 +989,21 @@ def loadSettings(suppressError=False):
         with open(CFG_PATH) as f:
             return json.load(f)
     except Exception as e:
-        if(not suppressError): showErrorDialog('Error loading settings file', str(e))
+        if(not suppressError): showErrorDialog(translate('Error loading settings file'), str(e))
 def saveSettings(settings):
     try:
         if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(CFG_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
-        showErrorDialog('Error saving settings file', str(e))
+        showErrorDialog(translate('Error saving settings file'), str(e))
 
 def loadCallHistory(suppressError=False):
     try:
         with open(HISTORY_PATH) as f:
             return json.load(f)
     except Exception as e:
-        if(not suppressError): showErrorDialog('Error loading history file', str(e))
+        if(not suppressError): showErrorDialog(translate('Error loading history file'), str(e))
         return []
 def saveCallHistory(settings):
     try:
@@ -1006,14 +1011,14 @@ def saveCallHistory(settings):
         with open(HISTORY_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
-        showErrorDialog('Error saving history file', str(e))
+        showErrorDialog(translate('Error saving history file'), str(e))
 
 def loadPhoneBook(suppressError=False):
     try:
         with open(PHONEBOOK_PATH) as f:
             return json.load(f)
     except Exception as e:
-        if(not suppressError): showErrorDialog('Error loading phone book file', str(e))
+        if(not suppressError): showErrorDialog(translate('Error loading phone book file'), str(e))
         return []
 def savePhoneBook(settings):
     try:
@@ -1021,7 +1026,7 @@ def savePhoneBook(settings):
         with open(PHONEBOOK_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
-        showErrorDialog('Error saving phone book file', str(e))
+        showErrorDialog(translate('Error saving phone book file'), str(e))
 
 # main entry point
 if __name__ == '__main__':
@@ -1051,6 +1056,17 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
+    # load QT translations
+    translator = QtCore.QTranslator(app)
+    if getattr(sys, 'frozen', False):
+        translator.load(os.path.join(sys._MEIPASS, 'lang/%s.qm' % getdefaultlocale()[0]))
+    elif os.path.isdir('lang'):
+        translator.load('lang/%s.qm' % getdefaultlocale()[0])
+    else:
+        translator.load('/usr/share/jabber4linux/lang/%s.qm' % getdefaultlocale()[0])
+    app.installTranslator(translator)
+
+    # load settings, show main window or login window
     settings = loadSettings(True)
     if settings != None and 'user' in settings and 'devices' in settings and len(settings['devices']) > 0:
         # directly start main window if login already done

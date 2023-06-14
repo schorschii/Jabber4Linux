@@ -39,7 +39,19 @@ sudo -H pip3 install -r requirements.txt
 ./Jabber4Linux.py
 ```
 
-## Development Resources
+## Development
+### I18n
+```
+# 1. Create translation files from code
+pylupdate5 certuploader.py -ts lang/de.ts
+
+# 2. Use Qt Linguist to translate the file
+
+# 3. Compile translation files for usage
+lrelease lang/de.ts
+```
+
+### Resources
 - Wireshark ftw
 - [SIP](https://de.wikipedia.org/wiki/Session_Initiation_Protocol)
 - [SIP Requests](https://de.wikipedia.org/wiki/SIP-Anfragen)
@@ -48,3 +60,6 @@ sudo -H pip3 install -r requirements.txt
 - [SDP](https://de.wikipedia.org/wiki/Session_Description_Protocol)
 - [Cisco UDS](https://developer.cisco.com/docs/user-data-services-api-reference/#!overview/overview)
 - [CUCM Security Features](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2019/pdf/BRKCOL-3501.pdf)
+
+## Support
+You can hire me for commercial support or adjustments for this project. Please [contact me](https://georg-sieber.de/?page=impressum) if you are interested.
