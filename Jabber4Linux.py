@@ -13,13 +13,15 @@ from functools import partial
 from pathlib import Path
 from threading import Thread, Timer
 from locale import getdefaultlocale
+import watchdog.events
+import watchdog.observers
+import filelock
 import datetime
 import pyaudio
 import time
 import argparse
 import json
 import re
-import socket
 import sys, os
 import traceback
 
@@ -515,29 +517,16 @@ class PhoneBookSearchCompleter(QtWidgets.QCompleter):
     #def applySuggestion(self, index):
     #    self.mainWindow.txtCall.setText(self.model().item(index.row(), 0).number)
 
-class IpcObserver(Thread):
-    IPC_PORT = 6666
+class IpcHandler(watchdog.events.FileSystemEventHandler):
+    IPC_FILE = CFG_DIR + '/ipc.lock'
 
     evtIpcMessageReceived = None
 
-    def __init__(self, *args, **kwargs):
-        super(IpcObserver, self).__init__(*args, **kwargs)
-        self.daemon = True
-        try:
-            self.ipcSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.ipcSock.bind(('localhost', self.IPC_PORT))
-            self.ipcSock.listen()
-        except Exception as e:
-            print('Unable to setup IPC socket:', e)
-            self.ipcSock = None
-
-    def run(self, *args, **kwargs):
-        if(not self.ipcSock): return
-        while True:
-            conn, address = self.ipcSock.accept()
-            with conn:
-                data = conn.recv(512)
-                if(data): self.evtIpcMessageReceived.emit(data.decode('utf-8').strip())
+    def on_modified(self, event):
+        if(event.src_path != IpcHandler.IPC_FILE): return
+        with open(IpcHandler.IPC_FILE, 'r') as f:
+            number = f.read().strip()
+            if(number != ''): self.evtIpcMessageReceived.emit(number)
 
 class MainWindow(QtWidgets.QMainWindow):
     user = None
@@ -738,10 +727,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setTrayIcon(self.STATUS_FAIL)
         self.trayIcon.show()
 
-        # init IPC server socket
-        self.ipcObserver = IpcObserver()
-        self.ipcObserver.evtIpcMessageReceived = self.evtIpcMessageReceived
-        self.ipcObserver.start()
+        # init IPC
+        try:
+            self.ipcLock = filelock.FileLock(IpcHandler.IPC_FILE, timeout=0)
+            self.ipcLock.acquire()
+            self.ipcHandler = IpcHandler()
+            self.ipcHandler.evtIpcMessageReceived = self.evtIpcMessageReceived
+            self.ipcObserver = watchdog.observers.Observer()
+            self.ipcObserver.schedule(self.ipcHandler, path=IpcHandler.IPC_FILE, recursive=False)
+            self.ipcObserver.start()
+            if(self.debug): print('IPC Lock acquired')
+        except Exception as e: print(e)
 
         # start SIP registration
         self.initSipSession(self.sltPhone.currentIndex())
@@ -1060,15 +1056,13 @@ if __name__ == '__main__':
     # if a number was given, we check if an instance is already running and forward the number to its MainWindow
     if(presetNumber):
         try:
-            ipcConn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            ipcConn.connect(('localhost', IpcObserver.IPC_PORT))
-            ipcConn.sendall(str.encode(presetNumber))
-            ipcConn.close()
+            filelock.FileLock(IpcHandler.IPC_FILE, timeout=0).acquire()
+            # file could be locked - start a new instance regularly since there is no other instance running
+        except filelock._error.Timeout as e:
+            # exception is thrown when file is already locked
             print('An instance is already running. Since a phone number was given as parameter, the number will be forwarded to the other instance and this instance will be closed immediately.')
+            with open(IpcHandler.IPC_FILE, 'w') as f: f.write(presetNumber)
             sys.exit(0)
-        except Exception as e:
-            # exception is thrown when connection to other instance could not be established - this will start a new instance regularly
-            pass
 
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
