@@ -44,10 +44,6 @@
         <translation>&amp;Informationen</translation>
     </message>
     <message>
-        <source>Jabber4Linux is a unofficial Cisco Jabber port for Linux.</source>
-        <translation></translation>
-    </message>
-    <message>
         <source>Server</source>
         <translation>Server</translation>
     </message>
@@ -68,8 +64,8 @@
         <translation>Passwort</translation>
     </message>
     <message>
-        <source>Login</source>
-        <translation>Anmeldung</translation>
+        <source>Jabber4Linux Login</source>
+        <translation>Jabber4Linux-Anmeldung</translation>
     </message>
     <message>
         <source>Login Error</source>
@@ -85,7 +81,11 @@
     </message>
     <message>
         <source>Call</source>
-        <translation>Anruf</translation>
+        <translation>Anrufen</translation>
+    </message>
+    <message>
+        <source>Start Call</source>
+        <translation>Anruf starten</translation>
     </message>
     <message>
         <source>Name</source>
@@ -128,10 +128,6 @@
         <translation>Anschluss</translation>
     </message>
     <message>
-        <source>Call!</source>
-        <translation>Anrufen!</translation>
-    </message>
-    <message>
         <source>Phone Number (type to search global address book)</source>
         <translation>Telefonnummer (tippen um das globale Adressbuch zu durchsuchen)</translation>
     </message>
@@ -154,6 +150,34 @@
     <message>
         <source>Jabber4Linux is a unofficial Cisco Jabber port for Linux.</source>
         <translation>Jabber4Linux ist eine inoffizielle Portierung von Cisco Jabber für Linux.</translation>
+    </message>
+    <message>
+        <source>Login</source>
+        <translation>Anmelden</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Ja</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Nein</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Speichern</translation>
+    </message>
+    <message>
+        <source>Current Call</source>
+        <translation>Laufender Anruf</translation>
+    </message>
+    <message>
+        <source>Hang Up</source>
+        <translation>Auflegen</translation>
     </message>
 </context>
 </TS>

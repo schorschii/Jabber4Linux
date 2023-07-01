@@ -46,6 +46,11 @@ def showErrorDialog(title, text, additionalText=''):
     msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
     msg.exec()
 
+def isDarkMode(palette):
+    return (palette.color(QtGui.QPalette.Background).red() < 100
+        and palette.color(QtGui.QPalette.Background).green() < 100
+        and palette.color(QtGui.QPalette.Background).blue() < 100)
+
 class AboutWindow(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
         super(AboutWindow, self).__init__(*args, **kwargs)
@@ -101,6 +106,8 @@ class LoginWindow(QtWidgets.QDialog):
 
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Login'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Exit'))
         self.buttonBox.accepted.connect(self.login)
         self.buttonBox.rejected.connect(self.reject)
 
@@ -135,7 +142,7 @@ class LoginWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle(PRODUCT_NAME + translate('Login'))
+        self.setWindowTitle(translate('Jabber4Linux Login'))
         self.resize(350, 150)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
 
@@ -175,6 +182,8 @@ class IncomingCallWindow(QtWidgets.QDialog):
 
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Yes|QtWidgets.QDialogButtonBox.No)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Yes).setText(translate('Yes'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.No).setText(translate('No'))
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
@@ -206,6 +215,7 @@ class OutgoingCallWindow(QtWidgets.QDialog):
 
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Cancel'))
         self.buttonBox.rejected.connect(self.accept) # accept means: cancel call!
 
         self.layout = QtWidgets.QGridLayout(self)
@@ -236,6 +246,7 @@ class CallWindow(QtWidgets.QDialog):
 
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Hang Up'))
         self.buttonBox.rejected.connect(self.cancelCall)
 
         self.layout = QtWidgets.QGridLayout(self)
@@ -250,7 +261,7 @@ class CallWindow(QtWidgets.QDialog):
         self.setLayout(self.layout)
 
         # window properties
-        self.setWindowTitle(translate('Call'))
+        self.setWindowTitle(translate('Current Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
@@ -266,6 +277,7 @@ class CallWindow(QtWidgets.QDialog):
 
     def closeEvent(self, event):
         self.callTimeInterval.cancel()
+        self.reject()
 
     def cancelCall(self):
         self.callTimeInterval.cancel()
@@ -306,6 +318,8 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         layout.addWidget(self.btnChooseRingtone, 2, 2)
 
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Save|QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Save).setText(translate('Save'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Cancel'))
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         layout.addWidget(self.buttonBox, 3, 0, 1, 3)
@@ -405,10 +419,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
 
     def setData(self, calls):
-        darkMode = (self.palette().color(QtGui.QPalette.Background).red() < 100
-            and self.palette().color(QtGui.QPalette.Background).green() < 100
-            and self.palette().color(QtGui.QPalette.Background).blue() < 100)
-        if(darkMode):
+        if(isDarkMode(self.palette())):
             self.iconIncoming = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.light.svg')
             self.iconOutgoing = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.light.svg')
         else:
@@ -448,7 +459,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
             counter += 1
 
         self.setHorizontalHeaderLabels([
-            '', # direction column (< or >)
+            '', # direction column (shows icon of incoming or outgoing call)
             translate('Remote Party'),
             translate('Date')
         ])
@@ -564,6 +575,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status = self.STATUS_FAIL
 
         # icons
+        if(isDarkMode(self.palette())):
+            self.iconCall = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.light.svg')
+        else:
+            self.iconCall = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.svg')
+
         self.iconApplication = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/tux-phone.svg')
         self.iconTrayNormal = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
         self.iconTrayNotification = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-notification.svg')
@@ -588,7 +604,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if(presetNumber): self.txtCall.setText(presetNumber)
         self.txtCall.setPlaceholderText(translate('Phone Number (type to search global address book)'))
         grid.addWidget(self.txtCall, 1, 1)
-        self.btnCall = QtWidgets.QPushButton(translate('Call!'))
+        self.btnCall = QtWidgets.QPushButton()
+        self.btnCall.setIcon(self.iconCall)
+        self.btnCall.setToolTip(translate('Start Call'))
         self.btnCall.clicked.connect(self.clickCall)
         self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
