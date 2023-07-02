@@ -752,14 +752,14 @@ class MainWindow(QtWidgets.QMainWindow):
             'input-device': self.inputDeviceName,
         })
         if(self.debug):
-            sys.exit()
+            QtCore.QCoreApplication.exit()
         else:
             event.ignore()
             self.hide()
 
     def clickQuit(self, e):
         self.close()
-        sys.exit()
+        QtCore.QCoreApplication.exit()
 
     def clickAboutDialog(self, e):
         dlg = AboutWindow(self)
@@ -1084,7 +1084,16 @@ if __name__ == '__main__':
         # directly start main window if login already done
         window = MainWindow(settings, presetNumber=presetNumber, debug=args.debug)
         if not args.hidden: window.show()
-        sys.exit(app.exec_())
+        exitCode = app.exec_()
+
+        # cleanup lock file
+        if(window.ipcLock.is_locked):
+            window.ipcLock.release()
+            window.ipcObserver.stop()
+            os.remove(IpcHandler.IPC_FILE)
+
+        sys.exit(exitCode)
+
     else:
         # show login window on first startup
         window = LoginWindow(debug=args.debug)
