@@ -737,7 +737,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ipcObserver = watchdog.observers.Observer()
             self.ipcObserver.schedule(self.ipcHandler, path=IpcHandler.IPC_FILE, recursive=False)
             self.ipcObserver.start()
-            if(self.debug): print('IPC Lock acquired')
+            if(self.debug): print(':: IPC Lock acquired')
         except Exception as e: print(e)
 
         # start SIP registration
