@@ -49,6 +49,7 @@ class SipHandler(threading.Thread):
     REGISTRATION_REGISTERED = 1
     REGISTRATION_FAILED = 2
     REGISTRATION_ALREADY_ACTIVE = 3
+    REGISTRATION_CONNECTION_RESET = 4
 
     INCOMING_CALL_RINGING = 1
     INCOMING_CALL_CANCELED = 2
@@ -117,6 +118,12 @@ class SipHandler(threading.Thread):
                         # message transmission is not completed yet, wait for next run
                         if(self.debug): print(':: SIP message info: found '+str(len(splitter[1])) + ' bytes but expecting ' + str(contentLength)+', waiting for more...')
                         break
+
+            except ConnectionResetError as e:
+                traceback.print_exc()
+                self.evtRegistrationStatusChanged.emit(self.REGISTRATION_CONNECTION_RESET, str(e))
+                break
+
             except Exception as e:
                 traceback.print_exc()
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))

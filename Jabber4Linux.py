@@ -533,6 +533,7 @@ class MainWindow(QtWidgets.QMainWindow):
     devices = None
     config = {} # misc settings
     debug = False
+    failFlag = False
 
     sipHandler = None
     registerRenevalInterval = None
@@ -886,11 +887,13 @@ class MainWindow(QtWidgets.QMainWindow):
         if(status == SipHandler.REGISTRATION_REGISTERED):
             self.lblRegistrationStatus.setText(translate('OK!'))
             self.setTrayIcon(self.STATUS_OK)
+            self.failFlag = False
+
         else:
             self.lblRegistrationStatus.setText(translate('FAILED!'))
             self.setTrayIcon(self.STATUS_FAIL)
 
-            # option to take over other sessions
+            # show option to take over other sessions
             if(status == SipHandler.REGISTRATION_ALREADY_ACTIVE):
                 msg = QtWidgets.QMessageBox()
                 msg.setIcon(QtWidgets.QMessageBox.Warning)
@@ -899,8 +902,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
                 if(msg.exec_() == QtWidgets.QMessageBox.Ok):
                     self.initSipSession(self.sltPhone.currentIndex(), True)
-            else:
-                showErrorDialog(translate('Registration Error'), text)
+                return
+
+            # it seems to be normal that the server closes the connection from time to time
+            # we retry to connect one time - if it fails again, we show a regular error
+            if(status == SipHandler.REGISTRATION_CONNECTION_RESET):
+                if(not self.failFlag):
+                    self.failFlag = True
+                    self.initSipSession(self.sltPhone.currentIndex())
+                    return
+
+            showErrorDialog(translate('Registration Error'), text)
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
