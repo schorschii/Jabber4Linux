@@ -3,6 +3,7 @@ requests
 PyQt5
 watchdog
 filelock
+cryptography>=2.5
 
 # pyaudio 0.2.11 (currently delivered in Ubuntu package python3-pyaudio) is incomaptible with Python 3.10, so we need to install the newest version via pip
 # needs portaudio19-dev

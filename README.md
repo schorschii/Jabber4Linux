@@ -14,6 +14,7 @@ What it can:
 - company phone book search
 - local address book with option to set custom ringtones per contact
 - handle "tel:" parameter/links (from websites)
+- SIPS (encrypted registration)
 
 What (currently) doesn't:
 - input/output audio device (headset) and ringtone devices selection
@@ -33,11 +34,24 @@ Stars & contributions welcome!
 ## Installation
 For Ubuntu 22.04:
 ```
-apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-pip
+apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip
 sudo -H pip3 install -r requirements.txt
 
 ./Jabber4Linux.py
 ```
+
+## SIPS Encryption
+SIPS is supported but currently needs manual intervention. The part which is unclear is how Cisco Jabber negotiates the client certificate with the server (any help in reverse engineering this is highly welcome). Such a certificate must be exported from a Windows cert store, where Cisco Jabber was started once with your credentials.
+
+1. Log in into Cisco Jabber on a Windows machine.
+2. Open the user cert store (`certmgr.msc`) and navigate to "Own Certificates" -> "Certificates".
+3. Export your Cisco Jabber certificate by right-clicking it -> "All Tasks" -> "Export".
+   - Choose "Yes, export private key".
+   - Choose format "PKCS #12 (.PFX)".
+   - Choose a password to protect the file.
+4. Convert to PEM format: `openssl pkcs12 -in jabbercert.pfx -out jabbercert.pem -nodes`.
+4. Move the PEM file into `~/.config/jabber4linux/client-certs` on your Linux machine. Create the directory if it does not exist.
+5. Start Jabber4Linux and login.
 
 ## Development
 ### I18n

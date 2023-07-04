@@ -61,10 +61,9 @@ class SipHandler(threading.Thread):
     OUTGOING_CALL_ACCEPTED = 2
     OUTGOING_CALL_FAILED = 3
 
-    def __init__(self, serverFqdn, serverPort, useTls, sipSender, sipNumber, deviceName, contactId, debug=False, *args, **kwargs):
+    def __init__(self, serverFqdn, serverPort, tlsOptions, sipSender, sipNumber, deviceName, contactId, debug=False, *args, **kwargs):
         self.serverFqdn = serverFqdn
         self.serverPort = serverPort
-        self.useTls = useTls
         self.sipSender = sipSender
         self.sipNumber = sipNumber
         self.instanceId = self.generateCallId()
@@ -82,11 +81,12 @@ class SipHandler(threading.Thread):
 
         # start SIP connection
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if(self.useTls):
+        if(type(tlsOptions) is dict and ('key' in tlsOptions and 'cert' in tlsOptions)):
+            self.useTls = True
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            context.set_ciphers('DEFAULT')
+            #context.set_ciphers('DEFAULT')
             #context.maximum_version = ssl.TLSVersion.TLSv1_2
-            context.load_cert_chain(certfile="experiments/siebert.crt", keyfile="experiments/siebert.key")
+            context.load_cert_chain(certfile=tlsOptions['cert'], keyfile=tlsOptions['key'])
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
             self.sock = context.wrap_socket(self.sock, server_hostname=serverFqdn)
@@ -150,7 +150,10 @@ class SipHandler(threading.Thread):
             elif(headers['SIP/2.0'].startswith('200')):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
                 self.scheduleRegistrationRenewalTimer(int(headers['Expires']))
-            elif(headers['SIP/2.0'].startswith('403')):
+            # "403 Forbidden" can be:
+            # - Warning: 399 sdvvoipcucmsub1 "Registration is active for another client"
+            # - Warning: 399 sdvvoipcucmsub1 "TLS authentication failure"
+            elif(headers['SIP/2.0'].startswith('403') and 'Warning' in headers and 'Registration is active for another client' in headers['Warning']):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, headers['Warning'] if 'Warning' in headers else '')
@@ -491,15 +494,19 @@ class SipHandler(threading.Thread):
     def getTimestamp(self):
         return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
 
-    def getTransport(self):
-        if(self.useTls): return 'tls'
-        else: return 'tcp'
+    def getTransport(self, uppercase=False):
+        if(self.useTls):
+            if(uppercase): return 'TLS'
+            else: return 'tls'
+        else:
+            if(uppercase): return 'TCP'
+            else: return 'tcp'
 
     def compileRegisterHead(self, clientIp, clientPort, cSeq, forceRegistration, body):
         if(self.registerCallId == None): self.registerCallId = self.generateCallId()
         instanceId = self.instanceId if forceRegistration else "00000000-0000-0000-0000-000000000000"
         return (f"REGISTER sip:{self.serverFqdn} SIP/2.0\r\n" +
-            f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK000050d9\r\n" +
+            f"Via: SIP/2.0/{self.getTransport(True)} {clientIp}:{clientPort};branch=z9hG4bK000050d9\r\n" +
             f"From: <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{self.sipNumber}@{self.serverFqdn}>\r\n" +
             f"Call-ID: {self.registerCallId}@{clientIp}\r\n" +
@@ -698,7 +705,7 @@ class SipHandler(threading.Thread):
             f"\r\n")
     def compileInviteHead(self, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber, callId, body):
         return (f"INVITE sip:{targetSipNumber}@{self.serverFqdn};user=phone SIP/2.0\r\n" +
-            f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
+            f"Via: SIP/2.0/{self.getTransport(True)} {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: \"{self.sipSender}\" <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
             f"To: <sip:{targetSipNumber}@{self.serverFqdn}>\r\n" +
             f"Call-ID: {callId}@{clientIp}\r\n" +
@@ -722,7 +729,7 @@ class SipHandler(threading.Thread):
             f"\r\n" + body)
     def compileCancelHead(self, fro, to, callId, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber):
         return (f"CANCEL sip:{targetSipNumber}@{self.serverFqdn};user=phone SIP/2.0\r\n" +
-            f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
+            f"Via: SIP/2.0/{self.getTransport(True)} {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: {fro}\r\n" +
             f"To: {to}\r\n" +
             f"Call-ID: {callId}\r\n" +
@@ -736,7 +743,7 @@ class SipHandler(threading.Thread):
     def compileByeHeadOutgoing(self, fro, to, callId, clientIp, clientPort, sessionId, remoteSessionId):
         byeTo = fro.split('<')[1].split('>')[0]
         return (f"BYE {byeTo};transport={self.getTransport()} SIP/2.0\r\n" +
-            f"Via: SIP/2.0/TCP {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
+            f"Via: SIP/2.0/{self.getTransport(True)} {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: {fro}\r\n" +
             f"To: {to}\r\n" +
             f"Call-ID: {callId}\r\n" +

@@ -9,6 +9,8 @@ from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
 from Tools import ignoreStderr, niceTime
 
+from cryptography.x509 import load_pem_x509_certificate
+from cryptography.hazmat.primitives import hashes
 from functools import partial
 from pathlib import Path
 from threading import Thread, Timer
@@ -857,13 +859,33 @@ class MainWindow(QtWidgets.QMainWindow):
             device = self.devices[deviceIndex]
 
             port = device['callManagers'][0]['sipPort']
-            useTls = False
+            tlsOptions = None
             if(device['deviceSecurityMode'] == '2' or device['deviceSecurityMode'] == '3'):
                 port = device['callManagers'][0]['sipsPort']
-                useTls = True
+
+                # find/load corresponding cert
+                if(not device['certHash']):
+                    raise Exception('deviceSecurityMode is enabled but no certHash given?!')
+                directory = CFG_DIR+'/client-certs'
+                certHash = device['certHash'].lower()
+                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {directory}')
+                for fileName in os.listdir(directory):
+                    filePath = directory+'/'+fileName
+                    if(not os.path.isfile(filePath)): continue
+                    with open(filePath, 'rb') as f:
+                        try:
+                            cert = load_pem_x509_certificate(f.read())
+                            if(cert.fingerprint(hashes.MD5()).hex().lower() == certHash):
+                                tlsOptions = {'cert':filePath, 'key':None} # key is included inside cert file
+                            elif(self.debug):
+                                print(f':: fingerprint of {filePath} does not match')
+                        except Exception as e:
+                            print(f':: unable to read certificate {filePath} ({e})')
+                if(not tlsOptions):
+                    raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {directory}')
 
             self.sipHandler = SipHandler(
-                device['callManagers'][0]['address'], port, useTls,
+                device['callManagers'][0]['address'], port, tlsOptions,
                 self.user['displayName'], device['number'], device['deviceName'], device['contact'],
                 debug=self.debug
             )
