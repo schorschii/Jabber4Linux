@@ -41,7 +41,9 @@ sudo -H pip3 install -r requirements.txt
 ```
 
 ## SIPS Encryption
-SIPS is supported but currently needs manual intervention. The part which is unclear is how Cisco Jabber negotiates the client certificate with the server (any help in reverse engineering this is highly welcome). Such a certificate must be exported from a Windows cert store, where Cisco Jabber was started once with your credentials.
+SIPS is supported but needs manual intervention at this time. The part which is unclear is how Cisco Jabber negotiates the client certificate with the server using the [CAPF](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/12_5_1SU1/systemConfig/cucm_b_system-configuration-guide-1251su1/cucm_b_system-configuration-guide-1251su1_restructured_chapter_0101100.html) [protocol](https://www.cisco.com/c/en/us/support/docs/unified-communications/unified-communications-manager-callmanager/212214-Tech-Note-on-CAPF-Certificate-Signed-by.html) on [port 3804](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/11_5_1/sysConfig/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151_chapter_01010100.html#:~:text=Communications%20Manager%20(CAPF)-,3804,-/%20TCP) (any help in reverse engineering this is highly welcome).
+
+Currently, such a certificate must be exported from a Windows cert store, where Cisco Jabber was started once with your credentials.
 
 1. Log in into Cisco Jabber on a Windows machine.
 2. Open the user cert store (`certmgr.msc`) and navigate to "Own Certificates" -> "Certificates".
