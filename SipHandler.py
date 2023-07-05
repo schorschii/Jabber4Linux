@@ -60,6 +60,7 @@ class SipHandler(threading.Thread):
     OUTGOING_CALL_RINGING = 1
     OUTGOING_CALL_ACCEPTED = 2
     OUTGOING_CALL_FAILED = 3
+    OUTGOING_CALL_BUSY = 4
 
     def __init__(self, serverFqdn, serverPort, tlsOptions, sipSender, sipNumber, deviceName, contactId, debug=False, *args, **kwargs):
         self.serverFqdn = serverFqdn
@@ -151,8 +152,8 @@ class SipHandler(threading.Thread):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_REGISTERED, '')
                 self.scheduleRegistrationRenewalTimer(int(headers['Expires']))
             # "403 Forbidden" can be:
-            # - Warning: 399 sdvvoipcucmsub1 "Registration is active for another client"
-            # - Warning: 399 sdvvoipcucmsub1 "TLS authentication failure"
+            # - Warning: 399 <servername> "Registration is active for another client"
+            # - Warning: 399 <servername> "TLS authentication failure"
             elif(headers['SIP/2.0'].startswith('403') and 'Warning' in headers and 'Registration is active for another client' in headers['Warning']):
                 self.evtRegistrationStatusChanged.emit(self.REGISTRATION_ALREADY_ACTIVE, headers['Warning'] if 'Warning' in headers else '')
             else:
@@ -186,10 +187,10 @@ class SipHandler(threading.Thread):
             self.sendSipMessage(senddata)
             # wait for user to accept call via acceptCall()
 
-        if(self.currentCall != None and 'CANCEL' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
+        if(self.currentCall and 'CANCEL' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
             self.evtIncomingCall.emit(self.INCOMING_CALL_CANCELED)
 
-        if(self.currentCall != None and 'ACK' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
+        if(self.currentCall and 'ACK' in headers and 'Session-ID' in headers and headers['Session-ID'].split(';')[0] == self.currentCall['headers']['Session-ID'].split(';')[0]):
             # start outgoing audio stream
             dstAddress, dstPort, payloadType, payloadTypeMap = self.parseSdpBody(body)
             if(dstAddress != None and dstPort != None):
@@ -197,7 +198,7 @@ class SipHandler(threading.Thread):
                 self.audioOut.start()
 
         ### handle outgoing calls
-        if('SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
+        if(self.currentCall and 'SIP/2.0' in headers and 'CSeq' in headers and 'INVITE' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
             if(headers['SIP/2.0'].startswith('100')):
                 self.currentCall['headers'] = headers
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_TRYING, '')
@@ -226,8 +227,16 @@ class SipHandler(threading.Thread):
             else:
                 self.evtOutgoingCall.emit(self.OUTGOING_CALL_FAILED, headers['Warning'] if 'Warning' in headers else headers['SIP/2.0'])
 
+        if(self.currentCall and 'REFER' in headers and 'Content-Type' in headers and headers['Content-Type'] == 'application/x-cisco-remotecc-request+xml'):
+            if('<tonetype>DtLineBusyTone</tonetype>' in body):
+                self.evtOutgoingCall.emit(self.OUTGOING_CALL_BUSY, '')
+
+        if(self.currentCall and 'SIP/2.0' in headers and 'CSeq' in headers and 'CANCEL' in headers['CSeq'] and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['callId']):
+            # server acked our CANCEL, forget currentCall
+            self.currentCall = None
+
         ### handle BYE from remote party (of incoming and outgoing calls)
-        if(self.currentCall != None and 'BYE' in headers and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['headers']['Call-ID'].split('@')[0]):
+        if(self.currentCall and 'BYE' in headers and 'Call-ID' in headers and headers['Call-ID'].split('@')[0] == self.currentCall['headers']['Call-ID'].split('@')[0]):
             # stop audio streams
             if(self.audioOut != None):
                 self.audioOut.stop()
@@ -244,7 +253,7 @@ class SipHandler(threading.Thread):
             self.evtCallClosed.emit()
 
         ### special: handle phone events ("kpml") in order to establish outgoing external (landline) calls
-        if(self.currentCall != None and 'SUBSCRIBE' in headers and headers['CSeq'] == '101 SUBSCRIBE'):
+        if(self.currentCall and 'SUBSCRIBE' in headers and headers['CSeq'] == '101 SUBSCRIBE'):
             senddata = self.compileSubscripeAckHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
@@ -257,14 +266,14 @@ class SipHandler(threading.Thread):
                 '1000 NOTIFY', ''
             )
             self.sendSipMessage(senddata)
-        if(self.currentCall != None and 'SIP/2.0' in headers and headers['SIP/2.0'] == '200 OK' and headers['CSeq'] == '1000 NOTIFY'):
+        if(self.currentCall and 'SIP/2.0' in headers and headers['SIP/2.0'] == '200 OK' and headers['CSeq'] == '1000 NOTIFY'):
             senddata = self.compileSubscripeNotifyHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
                 '1001 NOTIFY', '<?xml version="1.0" encoding="UTF-8"?><kpml-response xmlns="urn:ietf:params:xml:ns:kpml-response" version="1.0" code="423" text="Timer Expired" suppressed="false" forced_flush="false" digits="" tag="Backspace OK"/>'
             )
             self.sendSipMessage(senddata)
-        if(self.currentCall != None and 'SUBSCRIBE' in headers and headers['CSeq'] == '102 SUBSCRIBE'):
+        if(self.currentCall and 'SUBSCRIBE' in headers and headers['CSeq'] == '102 SUBSCRIBE'):
             senddata = self.compileSubscripeAckHead(
                 headers['Via'], headers['From'], headers['To'], headers['Call-ID'],
                 self.sock.getsockname()[0], str(self.sock.getsockname()[1]),

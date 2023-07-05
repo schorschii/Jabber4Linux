@@ -179,5 +179,13 @@
         <source>Hang Up</source>
         <translation>Auflegen</translation>
     </message>
+    <message>
+        <source>Call Failed</source>
+        <translation>Anruf fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>This line is currently busy</source>
+        <translation>Dieser Anschluss ist derzeit besetzt</translation>
+    </message>
 </context>
 </TS>

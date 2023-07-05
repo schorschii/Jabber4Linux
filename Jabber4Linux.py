@@ -40,10 +40,10 @@ PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
 def translate(text):
     return QtWidgets.QApplication.translate(PRODUCT_NAME, text)
 
-def showErrorDialog(title, text, additionalText=''):
-    print('Error: '+text)
+def showErrorDialog(title, text, additionalText='', icon=QtWidgets.QMessageBox.Critical):
+    print('(GUI ERROR DIALOG)', text)
     msg = QtWidgets.QMessageBox()
-    msg.setIcon(QtWidgets.QMessageBox.Critical)
+    msg.setIcon(icon)
     msg.setWindowTitle(title)
     msg.setText(text)
     msg.setDetailedText(additionalText)
@@ -881,6 +881,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                 print(f':: fingerprint of {filePath} does not match')
                         except Exception as e:
                             print(f':: unable to read certificate {filePath} ({e})')
+                    if(tlsOptions): break
                 if(not tlsOptions):
                     raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {directory}')
 
@@ -983,6 +984,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.outgoingCallWindow = OutgoingCallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.outgoingCallWindow.finished.connect(self.outgoingCallWindowFinished)
             self.outgoingCallWindow.show()
+        elif(status == SipHandler.OUTGOING_CALL_BUSY):
+            self.closeOutgoingCallWindow()
+            self.sipHandler.cancelCall()
+            showErrorDialog(translate('Call Failed'), translate('This line is currently busy'), '', icon=QtWidgets.QMessageBox.Warning)
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], MainWindow.CALL_HISTORY_OUTGOING)
