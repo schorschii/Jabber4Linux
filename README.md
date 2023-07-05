@@ -55,7 +55,7 @@ Currently, such a client certificate must be exported from a Windows cert store,
 4. Move the PEM file into `~/.config/jabber4linux/client-certs` on your Linux machine. Create the directory if it does not exist.
 5. Start Jabber4Linux and login.
 
-In addition to that, server certificates of Cisco CUCM used for SIPS are often self-signed. You can put all server certificates which should be trusted inside `~/.config/jabber4linux/server-certs` and they will automatically be loaded.
+In addition to that, server certificates of Cisco CUCM used for SIPS are often self-signed (unlike those used for the UDS API and web interface). You can put all server certificates which should be trusted inside `~/.config/jabber4linux/server-certs` and they will automatically be loaded.
 
 ## Development
 ### I18n
