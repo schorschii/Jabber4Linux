@@ -35,6 +35,8 @@ CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
 HISTORY_PATH = CFG_DIR+'/history.json'
 PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
+CLIENT_CERTS_PATH = CFG_DIR+'/client-certs'
+SERVER_CERTS_PATH = CFG_DIR+'/server-certs'
 
 
 def translate(text):
@@ -857,34 +859,42 @@ class MainWindow(QtWidgets.QMainWindow):
     def initSipSession(self, deviceIndex, force=False):
         try:
             device = self.devices[deviceIndex]
-
             port = device['callManagers'][0]['sipPort']
+
+            # set up SIPS encryption if configured
             tlsOptions = None
             if(device['deviceSecurityMode'] == '2' or device['deviceSecurityMode'] == '3'):
                 port = device['callManagers'][0]['sipsPort']
 
-                # find/load corresponding cert
+                # find/load corresponding client cert
                 if(not device['certHash']):
                     raise Exception('deviceSecurityMode is enabled but no certHash given?!')
-                directory = CFG_DIR+'/client-certs'
                 certHash = device['certHash'].lower()
-                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {directory}')
-                for fileName in os.listdir(directory):
-                    filePath = directory+'/'+fileName
+                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {CLIENT_CERTS_PATH}')
+                for fileName in os.listdir(CLIENT_CERTS_PATH):
+                    filePath = CLIENT_CERTS_PATH+'/'+fileName
                     if(not os.path.isfile(filePath)): continue
                     with open(filePath, 'rb') as f:
                         try:
                             cert = load_pem_x509_certificate(f.read())
                             if(cert.fingerprint(hashes.MD5()).hex().lower() == certHash):
-                                tlsOptions = {'cert':filePath, 'key':None} # key is included inside cert file
+                                tlsOptions = {'client-cert':filePath, 'client-key':None} # key should be included inside cert file
                             elif(self.debug):
                                 print(f':: fingerprint of {filePath} does not match')
                         except Exception as e:
                             print(f':: unable to read certificate {filePath} ({e})')
                     if(tlsOptions): break
                 if(not tlsOptions):
-                    raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {directory}')
+                    raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_PATH}')
 
+                # load trusted server certs
+                tlsOptions['server-cert'] = []
+                if(os.path.isdir(SERVER_CERTS_PATH)):
+                    for fileName in os.listdir(SERVER_CERTS_PATH):
+                        if(self.debug): print(f':: trusting server cert {fileName}')
+                        tlsOptions['server-cert'].append(SERVER_CERTS_PATH+'/'+fileName)
+
+            # start SIP(S) session
             self.sipHandler = SipHandler(
                 device['callManagers'][0]['address'], port, tlsOptions,
                 self.user['displayName'], device['number'], device['deviceName'], device['contact'],

@@ -82,14 +82,18 @@ class SipHandler(threading.Thread):
 
         # start SIP connection
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if(type(tlsOptions) is dict and ('key' in tlsOptions and 'cert' in tlsOptions)):
+        if(type(tlsOptions) is dict and ('client-cert' in tlsOptions and 'client-key' in tlsOptions and 'server-cert' in tlsOptions)):
             self.useTls = True
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             #context.set_ciphers('DEFAULT')
             #context.maximum_version = ssl.TLSVersion.TLSv1_2
-            context.load_cert_chain(certfile=tlsOptions['cert'], keyfile=tlsOptions['key'])
+            context.load_cert_chain(certfile=tlsOptions['client-cert'], keyfile=tlsOptions['client-key'])
             context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+            if(len(tlsOptions['server-cert']) == 0):
+                context.verify_mode = ssl.CERT_NONE
+            else:
+                for certFile in tlsOptions['server-cert']:
+                    context.load_verify_locations(certFile)
             self.sock = context.wrap_socket(self.sock, server_hostname=serverFqdn)
         self.sock.connect((self.serverFqdn, self.serverPort))
 
