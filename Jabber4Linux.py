@@ -35,8 +35,8 @@ CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
 HISTORY_PATH = CFG_DIR+'/history.json'
 PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
-CLIENT_CERTS_PATH = CFG_DIR+'/client-certs'
-SERVER_CERTS_PATH = CFG_DIR+'/server-certs'
+CLIENT_CERTS_DIR = CFG_DIR+'/client-certs'
+SERVER_CERTS_DIR = CFG_DIR+'/server-certs'
 
 
 def translate(text):
@@ -870,9 +870,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 if(not device['certHash']):
                     raise Exception('deviceSecurityMode is enabled but no certHash given?!')
                 certHash = device['certHash'].lower()
-                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {CLIENT_CERTS_PATH}')
-                for fileName in os.listdir(CLIENT_CERTS_PATH):
-                    filePath = CLIENT_CERTS_PATH+'/'+fileName
+                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
+                for fileName in os.listdir(CLIENT_CERTS_DIR):
+                    filePath = CLIENT_CERTS_DIR+'/'+fileName
                     if(not os.path.isfile(filePath)): continue
                     with open(filePath, 'rb') as f:
                         try:
@@ -885,14 +885,14 @@ class MainWindow(QtWidgets.QMainWindow):
                             print(f':: unable to read certificate {filePath} ({e})')
                     if(tlsOptions): break
                 if(not tlsOptions):
-                    raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_PATH}')
+                    raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
 
                 # load trusted server certs
                 tlsOptions['server-cert'] = []
-                if(os.path.isdir(SERVER_CERTS_PATH)):
-                    for fileName in os.listdir(SERVER_CERTS_PATH):
+                if(os.path.isdir(SERVER_CERTS_DIR)):
+                    for fileName in os.listdir(SERVER_CERTS_DIR):
                         if(self.debug): print(f':: trusting server cert {fileName}')
-                        tlsOptions['server-cert'].append(SERVER_CERTS_PATH+'/'+fileName)
+                        tlsOptions['server-cert'].append(SERVER_CERTS_DIR+'/'+fileName)
 
             # start SIP(S) session
             self.sipHandler = SipHandler(
