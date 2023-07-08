@@ -2,7 +2,7 @@
 
 It is annoying that companies always forget to implement their software for the most important operating system. Cisco even offers a native Linux AnyConnect client - but no Cisco Jabber Linux client. Unfortunately, the Windows binary doesn't perform well via Wine and I couldn't get any other Linux-native 3rd party softphone working with our Cisco telephone system, that's why we need another solution.
 
-Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows, written in pure Python. Warning: extremely experimental. Please note that the scope of this project is to emulate the softphone functionality. For chat/XMPP you can use other clients like Pidgin.
+Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows, written in pure Python. Warning: extremely experimental. Please note that the scope of this project is to emulate the softphone functionality compatible with Cisco CUCM. For chat/XMPP you can use other clients like Pidgin.
 
 What it can:
 - server auto discovery via DNS SRV record `_cisco-uds._tcp`
@@ -15,6 +15,7 @@ What it can:
 - local address book with option to set custom ringtones per contact
 - handle "tel:" parameter/links (from websites)
 - SIPS (encrypted registration)
+- call subjects
 
 What (currently) doesn't:
 - input/output audio device (headset) and ringtone devices selection
@@ -40,7 +41,7 @@ sudo -H pip3 install -r requirements.txt
 ./Jabber4Linux.py
 ```
 
-## SIPS Encryption
+## SIP Transport Encryption (SIPS)
 SIPS is supported but needs manual intervention at this time. The part which is unclear is how Cisco Jabber negotiates the client certificate with the server using the [CAPF](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/12_5_1SU1/systemConfig/cucm_b_system-configuration-guide-1251su1/cucm_b_system-configuration-guide-1251su1_restructured_chapter_0101100.html) [protocol](https://www.cisco.com/c/en/us/support/docs/unified-communications/unified-communications-manager-callmanager/212214-Tech-Note-on-CAPF-Certificate-Signed-by.html) on [port 3804](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/11_5_1/sysConfig/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151_chapter_01010100.html#:~:text=Communications%20Manager%20(CAPF)-,3804,-/%20TCP) (any help in reverse engineering this is highly welcome).
 
 Currently, such a client certificate must be exported from a Windows cert store, where Cisco Jabber was started once with your credentials.
