@@ -39,6 +39,39 @@ PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
 CLIENT_CERTS_DIR = CFG_DIR+'/client-certs'
 SERVER_CERTS_DIR = CFG_DIR+'/server-certs'
 
+QT_STYLESHEET = """
+    QPushButton#destructive, QPushButton#constructive {
+        min-width: 60px;
+        border: none;
+        border-radius: 2px;
+        padding: 8px;
+        outline: none;
+    }
+    QPushButton#destructive:focus, QPushButton#constructive:focus {
+        font-weight: bold;
+    }
+    QPushButton#destructive {
+        color: white;
+        background-color: #FF5C48;
+    }
+    QPushButton#destructive:hover {
+        background-color: #97362B;
+    }
+    QPushButton#destructive:pressed {
+        background-color: #6C271E;
+    }
+    QPushButton#constructive {
+        color: white;
+        background-color: #239B2A;
+    }
+    QPushButton#constructive:hover {
+        background-color: #1C7E22;
+    }
+    QPushButton#constructive:pressed {
+        background-color: #155F1A;
+    }
+"""
+
 
 def translate(text):
     return QtWidgets.QApplication.translate(PRODUCT_NAME, text)
@@ -191,12 +224,15 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Yes|QtWidgets.QDialogButtonBox.No)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Yes).setText(translate('Yes'))
         self.buttonBox.button(QtWidgets.QDialogButtonBox.No).setText(translate('No'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Yes).setObjectName('constructive')
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.No).setObjectName('destructive')
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
         self.layout = QtWidgets.QGridLayout(self)
 
         self.lblFrom1 = QtWidgets.QLabel(callerText)
+        self.lblFrom1.setStyleSheet('font-weight:bold')
         self.layout.addWidget(self.lblFrom1, 0, 0)
         self.lblFrom2 = QtWidgets.QLabel(diversionText)
         self.layout.addWidget(self.lblFrom2, 1, 0)
@@ -223,11 +259,13 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Cancel'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setObjectName('destructive')
         self.buttonBox.rejected.connect(self.accept) # accept means: cancel call!
 
         self.layout = QtWidgets.QGridLayout(self)
 
         self.lblTo = QtWidgets.QLabel(callerText)
+        self.lblTo.setStyleSheet('font-weight:bold')
         self.layout.addWidget(self.lblTo, 0, 0)
 
         self.layout.addWidget(self.buttonBox, 1, 0)
@@ -254,11 +292,13 @@ class CallWindow(QtWidgets.QDialog):
         # window layout
         self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
         self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Hang Up'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setObjectName('destructive')
         self.buttonBox.rejected.connect(self.cancelCall)
 
         self.layout = QtWidgets.QGridLayout(self)
 
         self.lblRemotePartyName = QtWidgets.QLabel(remotePartyName)
+        self.lblRemotePartyName.setStyleSheet('font-weight:bold')
         self.layout.addWidget(self.lblRemotePartyName, 0, 0)
 
         self.lblCallTimer = QtWidgets.QLabel(niceTime(0))
@@ -1154,6 +1194,7 @@ if __name__ == '__main__':
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    app.setStyleSheet(QT_STYLESHEET)
 
     # load QT translations
     translator = QtCore.QTranslator(app)
