@@ -10,6 +10,7 @@ import traceback
 import ssl
 import re
 import os, sys
+import urllib.parse
 from threading import Timer
 
 from Tools import ignoreStderr
@@ -349,7 +350,7 @@ class SipHandler(threading.Thread):
         )
         self.sendSipMessage(senddata)
 
-    def call(self, number):
+    def call(self, number, subject=None):
         self.currentCall = {
             'callId': self.generateCallId(),
             'number': number,
@@ -367,7 +368,7 @@ class SipHandler(threading.Thread):
         senddata = self.compileInviteHead(
             self.sock.getsockname()[0], str(self.sock.getsockname()[1]),
             self.currentCall['mySessionId'], self.currentCall['remoteSessionId'], number, self.currentCall['callId'],
-            sdp
+            subject, sdp
         )
         self.audioIn.applyPayloadTypeMap(payloadTypeMap)
         self.sendSipMessage(senddata)
@@ -716,7 +717,8 @@ class SipHandler(threading.Thread):
             f"Recv-Info: x-cisco-conference\r\n" +
             f"Content-Length: 0\r\n" +
             f"\r\n")
-    def compileInviteHead(self, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber, callId, body):
+    def compileInviteHead(self, clientIp, clientPort, sessionId, remoteSessionId, targetSipNumber, callId, subject, body):
+        if(subject): subject = urllib.parse.quote_plus(subject) # I really want to send a call subject to my colleagues!
         return (f"INVITE sip:{targetSipNumber}@{self.serverFqdn};user=phone SIP/2.0\r\n" +
             f"Via: SIP/2.0/{self.getTransport(True)} {clientIp}:{clientPort};branch=z9hG4bK00005d4d\r\n" +
             f"From: \"{self.sipSender}\" <sip:{self.sipNumber}@{self.serverFqdn}>;tag={self.generateTag()}\r\n" +
@@ -727,7 +729,8 @@ class SipHandler(threading.Thread):
             f"Date: {self.getTimestamp()}\r\n" +
             f"CSeq: 101 INVITE\r\n" +
             f"User-Agent: Cisco-CSF\r\n" +
-            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\"\r\n" +
+            f"Contact: <sip:{self.contactId}@{clientIp}:{clientPort};transport={self.getTransport()}>;+u.sip!devicename.ccm.cisco.com=\"{self.deviceName}\""+(f";subject={subject}" if subject else "")+"\r\n" + # we append the subject in a non-standard way as parameter onto the Contact header, because ...
+            (f"Subject: {subject}\r\n" if subject else "") + # ... unfortunately, Cisco CUCM does not forward this standard subject header to the remote party
             f"Expires: 180\r\n" +
             f"Accept: application/sdp\r\n" +
             f"Allow: ACK,BYE,CANCEL,INVITE,NOTIFY,OPTIONS,REFER,REGISTER,UPDATE,SUBSCRIBE,INFO\r\n" +

@@ -15,6 +15,7 @@ from functools import partial
 from pathlib import Path
 from threading import Thread, Timer
 from locale import getdefaultlocale
+import urllib.parse
 import watchdog.events
 import watchdog.observers
 import filelock
@@ -200,7 +201,7 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.lblFrom2 = QtWidgets.QLabel(diversionText)
         self.layout.addWidget(self.lblFrom2, 1, 0)
 
-        self.layout.addWidget(self.buttonBox, 3, 1, 1, 2)
+        self.layout.addWidget(self.buttonBox, 2, 0)
         self.setLayout(self.layout)
 
         # window properties
@@ -229,7 +230,7 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.lblTo = QtWidgets.QLabel(callerText)
         self.layout.addWidget(self.lblTo, 0, 0)
 
-        self.layout.addWidget(self.buttonBox, 3, 1, 1, 2)
+        self.layout.addWidget(self.buttonBox, 1, 0)
         self.setLayout(self.layout)
 
         # window properties
@@ -263,7 +264,7 @@ class CallWindow(QtWidgets.QDialog):
         self.lblCallTimer = QtWidgets.QLabel(niceTime(0))
         self.layout.addWidget(self.lblCallTimer, 1, 0)
 
-        self.layout.addWidget(self.buttonBox, 3, 1, 1, 2)
+        self.layout.addWidget(self.buttonBox, 2, 1)
         self.setLayout(self.layout)
 
         # window properties
@@ -661,8 +662,19 @@ class MainWindow(QtWidgets.QMainWindow):
         fileMenu = mainMenu.addMenu(translate('&File'))
 
         registerAction = QtWidgets.QAction(translate('&Register'), self)
+        registerAction.setShortcut('F5')
         registerAction.triggered.connect(self.clickRegister)
         fileMenu.addAction(registerAction)
+
+        fileMenu.addSeparator()
+        callAction = QtWidgets.QAction(translate('Start &Call'), self)
+        callAction.setShortcut('F2')
+        callAction.triggered.connect(self.clickCall)
+        fileMenu.addAction(callAction)
+        callWithSubjectAction = QtWidgets.QAction(translate('Start Call With &Subject'), self)
+        callWithSubjectAction.setShortcut('F3')
+        callWithSubjectAction.triggered.connect(self.clickCallWithSubject)
+        fileMenu.addAction(callWithSubjectAction)
 
         fileMenu.addSeparator()
         quitAction = QtWidgets.QAction(translate('&Quit'), self)
@@ -950,23 +962,37 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
-            diversionText = (translate('Forwarded for: ')+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]) if 'Diversion' in self.sipHandler.currentCall['headers'] else ''
-            self.incomingCallWindow = IncomingCallWindow(callerText, diversionText)
+            subjectText = ''
+            if('Subject' in self.sipHandler.currentCall['headers']):
+                subjectText = translate('Subject')+': '+self.sipHandler.currentCall['headers']['Subject']
+            if('Contact' in self.sipHandler.currentCall['headers']):
+                for item in self.sipHandler.currentCall['headers']['Contact'].split(';'):
+                    keyValue = item.split('=')
+                    if(len(keyValue) > 1 and keyValue[0] == 'subject'):
+                        subjectText = translate('Subject')+': '+urllib.parse.unquote_plus(keyValue[1])
+            diversionText = ''
+            if('Diversion' in self.sipHandler.currentCall['headers']):
+                diversionText = translate('Forwarded for')+': '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]
+
+            self.incomingCallWindow = IncomingCallWindow(callerText, (subjectText+"\n"+diversionText).strip())
             try:
                 self.startRingtone(self.sipHandler.currentCall['number'])
             except Exception as e:
                 print('!!! ringtone error: '+str(e))
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
             self.incomingCallWindow.show()
+
         elif(status == SipHandler.INCOMING_CALL_CANCELED):
             self.closeIncomingCallWindow()
             self.setTrayIcon(self.STATUS_NOTIFY)
+
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING)
             self.closeIncomingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['From_parsed_text'] if 'From_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
+
         else:
             showErrorDialog(translate('Incoming Call Failed'), str(status))
 
@@ -985,28 +1011,40 @@ class MainWindow(QtWidgets.QMainWindow):
         if(self.incomingCallWindow != None):
             self.incomingCallWindow.close()
 
-    def clickCall(self, sender):
+    def clickCall(self, sender, subject=None):
         numberStripped = self.txtCall.text().strip()
-        if(numberStripped != ''): self.sipHandler.call(numberStripped)
+        if(numberStripped != ''): self.sipHandler.call(numberStripped, subject)
+    def clickCallWithSubject(self, sender):
+        if(self.txtCall.text().strip() == ''): return
+        dialog = QtWidgets.QInputDialog(self)
+        dialog.setWindowTitle(translate('Subject'))
+        dialog.setLabelText(translate('Please enter a call subject.')+"\n"+translate('Please note that only compatible clients will display it to the remote party.'))
+        dialog.setCancelButtonText(translate('Cancel'))
+        if(dialog.exec_() == QtWidgets.QDialog.Accepted):
+            self.clickCall(None, dialog.textValue())
 
     def evtOutgoingCallHandler(self, status, text):
         if(status == SipHandler.OUTGOING_CALL_TRYING):
             self.outgoingCallWindow = OutgoingCallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.outgoingCallWindow.finished.connect(self.outgoingCallWindowFinished)
             self.outgoingCallWindow.show()
+
         elif(status == SipHandler.OUTGOING_CALL_BUSY):
             self.closeOutgoingCallWindow()
             self.sipHandler.cancelCall()
             showErrorDialog(translate('Call Failed'), translate('This line is currently busy'), '', icon=QtWidgets.QMessageBox.Warning)
+
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
             self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], MainWindow.CALL_HISTORY_OUTGOING)
             self.startRingtone(self.sipHandler.currentCall['number'])
+
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
             self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
+
         else:
             self.closeOutgoingCallWindow()
             showErrorDialog(translate('Outgoing Call Failed'), str(text))

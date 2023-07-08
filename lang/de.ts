@@ -88,6 +88,14 @@
         <translation>Anruf starten</translation>
     </message>
     <message>
+        <source>Start &amp;Call</source>
+        <translation>&amp;Anruf starten</translation>
+    </message>
+    <message>
+        <source>Start Call With &amp;Subject</source>
+        <translation>Anruf &amp;mit Betreff starten</translation>
+    </message>
+    <message>
         <source>Name</source>
         <translation>Name</translation>
     </message>
@@ -186,6 +194,22 @@
     <message>
         <source>This line is currently busy</source>
         <translation>Dieser Anschluss ist derzeit besetzt</translation>
+    </message>
+    <message>
+        <source>Forwarded for</source>
+        <translation>Weitergeleitet für</translation>
+    </message>
+    <message>
+        <source>Subject</source>
+        <translation>Betreff</translation>
+    </message>
+    <message>
+        <source>Please enter a call subject.</source>
+        <translation>Bitte geben Sie einen Gesprächsbetreff ein.</translation>
+    </message>
+    <message>
+        <source>Please note that only compatible clients will display it to the remote party.</source>
+        <translation>Bitte beachten Sie, dass dieser nur von kompatiblen Clients angezeigt wird.</translation>
     </message>
 </context>
 </TS>
