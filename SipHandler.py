@@ -47,6 +47,7 @@ class SipHandler(threading.Thread):
     outputDeviceName = None
 
     # status constants
+    REGISTRATION_INACTIVE = 0
     REGISTRATION_REGISTERED = 1
     REGISTRATION_FAILED = 2
     REGISTRATION_ALREADY_ACTIVE = 3
@@ -301,9 +302,9 @@ class SipHandler(threading.Thread):
     def scheduleRegistrationRenewalTimer(self, registrationExpiresSeconds):
         # schedule timer for registration renewal
         if(registrationExpiresSeconds > 2):
-            self.registerRenevalInterval = Timer(registrationExpiresSeconds/2, self.register)
-            self.registerRenevalInterval.daemon = True
-            self.registerRenevalInterval.start()
+            self.registerRenewalInterval = Timer(registrationExpiresSeconds/2, self.register)
+            self.registerRenewalInterval.daemon = True
+            self.registerRenewalInterval.start()
             self.sock.settimeout(registrationExpiresSeconds+5) # throw exception if we get no response in time
 
     def register(self, force=False):
@@ -319,6 +320,13 @@ class SipHandler(threading.Thread):
             traceback.print_exc()
             self.evtRegistrationStatusChanged.emit(self.REGISTRATION_FAILED, str(e))
             return
+
+    def stop(self):
+        if(self.debug): print(':: closing SIP(S) connection')
+        if(self.registerRenewalInterval and self.registerRenewalInterval.is_alive()):
+            self.registerRenewalInterval.cancel()
+        self.sock.shutdown(socket.SHUT_WR) # with close(), the socket later still raises the timeout exception
+        self.evtRegistrationStatusChanged.emit(self.REGISTRATION_INACTIVE, 'Session closed by user')
 
     def acceptCall(self):
         if(self.currentCall == None): return

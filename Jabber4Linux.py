@@ -626,8 +626,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblPhone = QtWidgets.QLabel(translate('Line'))
         grid.addWidget(self.lblPhone, 0, 0)
         self.sltPhone = QtWidgets.QComboBox()
+        phoneIndex = 0
         for device in self.devices:
             self.sltPhone.addItem(str(device['number']))
+            if('default' in device and device['default']):
+                self.sltPhone.setCurrentIndex(phoneIndex)
+            phoneIndex += 1
         self.sltPhone.currentIndexChanged.connect(self.sltPhoneChanged)
         grid.addWidget(self.sltPhone, 0, 1)
         self.lblRegistrationStatus = QtWidgets.QLabel('...')
@@ -910,6 +914,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def initSipSession(self, deviceIndex, force=False):
         try:
+            # stop previous SIP(S) session
+            if(self.sipHandler):
+                self.sipHandler.stop()
+
+            # set current selection as default device for next startup
+            counter = 0
+            for dev in self.devices:
+                dev['default'] = (counter == deviceIndex)
+                counter += 1
+
+            # get selected device details
             device = self.devices[deviceIndex]
             port = device['callManagers'][0]['sipPort']
 
@@ -973,6 +988,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.lblRegistrationStatus.setText(translate('OK!'))
             self.setTrayIcon(self.STATUS_OK)
             self.failFlag = False
+
+        elif(status == SipHandler.REGISTRATION_INACTIVE):
+            self.lblRegistrationStatus.setText('...')
+            self.setTrayIcon(self.STATUS_FAIL)
 
         else:
             self.lblRegistrationStatus.setText(translate('FAILED!'))
