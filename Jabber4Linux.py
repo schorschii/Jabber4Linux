@@ -337,7 +337,7 @@ class CallWindow(QtWidgets.QDialog):
         self.callTimeInterval.start()
 
 class PhoneBookEntryWindow(QtWidgets.QDialog):
-    def __init__(self, mainWindow, *args, **kwargs):
+    def __init__(self, mainWindow, presetNumber=None, *args, **kwargs):
         super(PhoneBookEntryWindow, self).__init__(*args, **kwargs)
         self.mainWindow = mainWindow
 
@@ -352,6 +352,7 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.lblCall = QtWidgets.QLabel(translate('Number'))
         layout.addWidget(self.lblCall, 1, 0)
         self.txtNumber = QtWidgets.QLineEdit()
+        if(presetNumber): self.txtNumber.setText(presetNumber)
         layout.addWidget(self.txtNumber, 1, 1)
 
         self.lblCall = QtWidgets.QLabel(translate('Ringtone'))
@@ -650,10 +651,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
 
+        gridCalls = QtWidgets.QGridLayout()
         self.tblCalls = CallHistoryTable()
         self.tblCalls.setData(self.callHistory)
         self.tblCalls.keyPressed.connect(self.tblCallsKeyPressed)
         self.tblCalls.doubleClicked.connect(self.recallHistory)
+        gridCalls.addWidget(self.tblCalls, 0, 0)
+        buttonBox = QtWidgets.QVBoxLayout()
+        btnAddPhoneBookEntry = QtWidgets.QPushButton(translate('Add'))
+        btnAddPhoneBookEntry.clicked.connect(self.addCallsEntryToPhoneBook)
+        buttonBox.addWidget(btnAddPhoneBookEntry)
+        btnDelPhoneBookEntry = QtWidgets.QPushButton(translate('Remove'))
+        btnDelPhoneBookEntry.clicked.connect(self.delCallsEntry)
+        buttonBox.addWidget(btnDelPhoneBookEntry)
+        buttonBox.addStretch(1)
+        gridCalls.addLayout(buttonBox, 0, 1)
+        gridCalls.setContentsMargins(0, 0, 0, 0)
+        widgetCalls = QtWidgets.QWidget()
+        widgetCalls.setLayout(gridCalls)
 
         gridPhoneBook = QtWidgets.QGridLayout()
         self.tblPhoneBook = PhoneBookTable()
@@ -675,7 +690,7 @@ class MainWindow(QtWidgets.QMainWindow):
         widgetPhoneBook.setLayout(gridPhoneBook)
 
         tabHistoryPhoneBook = QtWidgets.QTabWidget()
-        tabHistoryPhoneBook.addTab(self.tblCalls, translate('Call History'))
+        tabHistoryPhoneBook.addTab(widgetCalls, translate('Call History'))
         tabHistoryPhoneBook.addTab(widgetPhoneBook, translate('Local Address Book'))
         grid.addWidget(tabHistoryPhoneBook, 2, 0, 1, 3)
 
@@ -864,11 +879,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 break
     def tblCallsKeyPressed(self, keyCode):
         if(keyCode == QtCore.Qt.Key_Delete):
-            indices = self.tblCalls.selectionModel().selectedRows() 
-            for index in sorted(indices, reverse=True):
-                del self.callHistory[index.row()]
-            self.tblCalls.setData(self.callHistory)
-            saveCallHistory(self.callHistory)
+            self.delCallsEntry(None)
         if(keyCode == QtCore.Qt.Key_Return):
             self.recallHistory(None)
     def tblPhoneBookKeyPressed(self, keyCode):
@@ -880,18 +891,32 @@ class MainWindow(QtWidgets.QMainWindow):
     def addPhoneBookEntry(self, e):
         dialog = PhoneBookEntryWindow(self)
         dialog.exec_()
+    def addCallsEntryToPhoneBook(self, e):
+        indices = self.tblCalls.selectionModel().selectedRows()
+        for index in sorted(indices):
+            dialog = PhoneBookEntryWindow(self, self.callHistory[index.row()]['number'])
+            dialog.exec_()
+            break
     def delPhoneBookEntry(self, e):
-        indices = self.tblPhoneBook.selectionModel().selectedRows() 
+        indices = self.tblPhoneBook.selectionModel().selectedRows()
         for index in sorted(indices, reverse=True):
             del self.phoneBook[index.row()]
         self.tblPhoneBook.setData(self.phoneBook)
         savePhoneBook(self.phoneBook)
+    def delCallsEntry(self, e):
+        indices = self.tblCalls.selectionModel().selectedRows()
+        for index in sorted(indices, reverse=True):
+            del self.callHistory[index.row()]
+        self.tblCalls.setData(self.callHistory)
+        saveCallHistory(self.callHistory)
 
     CALL_HISTORY_OUTGOING = 1
     CALL_HISTORY_INCOMING = 2
     CALL_HISTORY_INCOMING_MISSED = 3
+    CALL_HISTORY_MAX_ITEMS = 99
     def addCallToHistory(self, displayName, number, type):
         self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'type':type})
+        self.callHistory = self.callHistory[:MainWindow.CALL_HISTORY_MAX_ITEMS]
         self.tblCalls.setData(self.callHistory)
         saveCallHistory(self.callHistory)
 
