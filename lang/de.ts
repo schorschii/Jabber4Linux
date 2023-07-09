@@ -137,11 +137,15 @@
     </message>
     <message>
         <source>Phone Number (type to search global address book)</source>
-        <translation>Telefonnummer (tippen um das globale Adressbuch zu durchsuchen)</translation>
+        <translation>Telefonnummer (tippen, um das globale Adressbuch zu durchsuchen)</translation>
     </message>
     <message>
         <source>Add</source>
         <translation>Hinzufügen</translation>
+    </message>
+    <message>
+        <source>Add To Phone Book</source>
+        <translation>Zum Adressbuch hinzufügen</translation>
     </message>
     <message>
         <source>Remove</source>
