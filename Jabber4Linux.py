@@ -417,7 +417,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         QtCore.QCoreApplication.exit()
 
 class PhoneBookTable(QtWidgets.QTableWidget):
-    keyPressed = QtCore.pyqtSignal(int)
+    keyPressed = QtCore.pyqtSignal(QtGui.QKeyEvent)
 
     def __init__(self, *args):
         self.entries = {}
@@ -428,7 +428,7 @@ class PhoneBookTable(QtWidgets.QTableWidget):
 
     def keyPressEvent(self, event):
         super(PhoneBookTable, self).keyPressEvent(event)
-        if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
+        if(not event.isAutoRepeat()): self.keyPressed.emit(event)
 
     def setData(self, entries):
         self.entries = entries
@@ -453,7 +453,7 @@ class PhoneBookTable(QtWidgets.QTableWidget):
         self.resizeRowsToContents()
 
 class CallHistoryTable(QtWidgets.QTableWidget):
-    keyPressed = QtCore.pyqtSignal(int)
+    keyPressed = QtCore.pyqtSignal(QtGui.QKeyEvent)
 
     def __init__(self, *args):
         self.calls = {}
@@ -464,7 +464,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
 
     def keyPressEvent(self, event):
         super(CallHistoryTable, self).keyPressEvent(event)
-        if(not event.isAutoRepeat()): self.keyPressed.emit(event.key())
+        if(not event.isAutoRepeat()): self.keyPressed.emit(event)
 
     def setData(self, calls):
         if(isDarkMode(self.palette())):
@@ -643,12 +643,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.txtCall = QtWidgets.QLineEdit()
         if(presetNumber): self.txtCall.setText(presetNumber)
         self.txtCall.setPlaceholderText(translate('Phone Number (type to search global address book)'))
+        self.txtCall.installEventFilter(self)
         grid.addWidget(self.txtCall, 1, 1)
         self.btnCall = QtWidgets.QPushButton()
         self.btnCall.setIcon(self.iconCall)
         self.btnCall.setToolTip(translate('Start Call'))
+        self.btnCall.installEventFilter(self)
         self.btnCall.clicked.connect(self.clickCall)
-        self.txtCall.returnPressed.connect(self.btnCall.click)
         grid.addWidget(self.btnCall, 1, 2)
 
         gridCalls = QtWidgets.QGridLayout()
@@ -848,6 +849,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.txtCall.selectAll()
             self.txtCall.setFocus()
 
+    def eventFilter(self, source, event):
+        if(event.type() == QtCore.QEvent.KeyPress
+        and (source is self.txtCall or source is self.btnCall)
+        and event.key() == QtCore.Qt.Key_Return):
+            if(event.modifiers() & QtCore.Qt.CTRL):
+                self.clickCallWithSubject(None)
+            else:
+                self.clickCall(None)
+        return super(MainWindow, self).eventFilter(source, event)
+
     def clickChooseRingtone(self, e):
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, translate('Ringtone File'), self.ringtoneFile, 'WAV Audio Files (*.wav);;')
         if fileName: self.ringtoneFile = fileName
@@ -865,28 +876,36 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.ringtoneOutputDeviceNames.remove(deviceName)
 
-    def recallHistory(self, e):
+    def recallHistory(self, e, withSubject=False):
         for row in sorted(self.tblCalls.selectionModel().selectedRows()):
             historyItem = self.callHistory[row.row()]
             if('number' in historyItem and historyItem['number'].strip() != ''):
-                self.sipHandler.call(historyItem['number'])
+                if(withSubject):
+                    subject = self.askForCallSubject()
+                    if(subject != None): self.sipHandler.call(historyItem['number'], subject)
+                else:
+                    self.sipHandler.call(historyItem['number'])
                 break
-    def callPhoneBook(self, e):
+    def callPhoneBook(self, e, withSubject=False):
         for row in sorted(self.tblPhoneBook.selectionModel().selectedRows()):
             addressBookEntry = self.phoneBook[row.row()]
             if('number' in addressBookEntry and addressBookEntry['number'].strip() != ''):
-                self.sipHandler.call(addressBookEntry['number'])
+                if(withSubject):
+                    subject = self.askForCallSubject()
+                    if(subject != None): self.sipHandler.call(addressBookEntry['number'], subject)
+                else:
+                    self.sipHandler.call(addressBookEntry['number'])
                 break
-    def tblCallsKeyPressed(self, keyCode):
-        if(keyCode == QtCore.Qt.Key_Delete):
+    def tblCallsKeyPressed(self, keyEvent):
+        if(keyEvent.key() == QtCore.Qt.Key_Delete):
             self.delCallsEntry(None)
-        if(keyCode == QtCore.Qt.Key_Return):
-            self.recallHistory(None)
-    def tblPhoneBookKeyPressed(self, keyCode):
-        if(keyCode == QtCore.Qt.Key_Delete):
+        if(keyEvent.key() == QtCore.Qt.Key_Return):
+            self.recallHistory(None, (keyEvent.modifiers() & QtCore.Qt.CTRL))
+    def tblPhoneBookKeyPressed(self, keyEvent):
+        if(keyEvent.key() == QtCore.Qt.Key_Delete):
             self.delPhoneBookEntry(None)
-        if(keyCode == QtCore.Qt.Key_Return):
-            self.callPhoneBook(None)
+        if(keyEvent.key() == QtCore.Qt.Key_Return):
+            self.callPhoneBook(None, (keyEvent.modifiers() & QtCore.Qt.CTRL))
 
     def addPhoneBookEntry(self, e):
         dialog = PhoneBookEntryWindow(self)
@@ -1095,17 +1114,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if(self.incomingCallWindow != None):
             self.incomingCallWindow.close()
 
-    def clickCall(self, sender, subject=None):
-        numberStripped = self.txtCall.text().strip()
-        if(numberStripped != ''): self.sipHandler.call(numberStripped, subject)
-    def clickCallWithSubject(self, sender):
-        if(self.txtCall.text().strip() == ''): return
+    def askForCallSubject(self):
         dialog = QtWidgets.QInputDialog(self)
         dialog.setWindowTitle(translate('Subject'))
         dialog.setLabelText(translate('Please enter a call subject.')+"\n"+translate('Please note that only compatible clients will display it to the remote party.'))
         dialog.setCancelButtonText(translate('Cancel'))
         if(dialog.exec_() == QtWidgets.QDialog.Accepted):
-            self.clickCall(None, dialog.textValue())
+            return dialog.textValue()
+        else:
+            return None
+
+    def clickCall(self, sender, subject=None):
+        numberStripped = self.txtCall.text().strip()
+        if(numberStripped != ''): self.sipHandler.call(numberStripped, subject)
+    def clickCallWithSubject(self, sender):
+        if(self.txtCall.text().strip() == ''): return
+        subject = self.askForCallSubject()
+        if(subject != None): self.clickCall(None, subject)
 
     def evtOutgoingCallHandler(self, status, text):
         if(status == SipHandler.OUTGOING_CALL_TRYING):
