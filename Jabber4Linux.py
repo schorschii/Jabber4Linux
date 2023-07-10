@@ -580,6 +580,7 @@ class MainWindow(QtWidgets.QMainWindow):
     config = {} # misc settings
     debug = False
     failFlag = False
+    registrationFeedbackFlag = False
 
     sipHandler = None
     registerRenevalInterval = None
@@ -951,6 +952,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.trayIcon.setIcon(newIcon)
 
     def clickRegister(self, e):
+        self.registrationFeedbackFlag = True
         self.initSipSession(self.sltPhone.currentIndex())
 
     def sltPhoneChanged(self, sender):
@@ -1032,6 +1034,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.lblRegistrationStatus.setText(translate('OK!'))
             self.setTrayIcon(self.STATUS_OK)
             self.failFlag = False
+            if(self.registrationFeedbackFlag):
+                showErrorDialog(translate('Success'), translate('SIP registration successful'), icon=QtWidgets.QMessageBox.Information)
+                self.registrationFeedbackFlag = False
 
         elif(status == SipHandler.REGISTRATION_INACTIVE):
             self.lblRegistrationStatus.setText('...')

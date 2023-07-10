@@ -215,5 +215,13 @@
         <source>Please note that only compatible clients will display it to the remote party.</source>
         <translation>Bitte beachten Sie, dass dieser nur von kompatiblen Clients angezeigt wird.</translation>
     </message>
+    <message>
+        <source>Success</source>
+        <translation>Erfolg</translation>
+    </message>
+    <message>
+        <source>SIP registration successful</source>
+        <translation>SIP-Registrierung erfolgreich</translation>
+    </message>
 </context>
 </TS>
