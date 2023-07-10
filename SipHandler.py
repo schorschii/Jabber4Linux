@@ -325,7 +325,13 @@ class SipHandler(threading.Thread):
         if(self.debug): print(':: closing SIP(S) connection')
         if(self.registerRenewalInterval and self.registerRenewalInterval.is_alive()):
             self.registerRenewalInterval.cancel()
-        self.sock.shutdown(socket.SHUT_WR) # with close(), the socket later still raises the timeout exception
+        try:
+            # when using close(), the socket later still raises the timeout exception
+            self.sock.shutdown(socket.SHUT_WR)
+        except Exception as e:
+            # if this is a reconnection attempt after "connection closed closed by peer",
+            # it is normal that sock.shutdown() raises an error since it is already closed
+            traceback.print_exc()
         self.evtRegistrationStatusChanged.emit(self.REGISTRATION_INACTIVE, 'Session closed by user')
 
     def acceptCall(self):
