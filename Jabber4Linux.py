@@ -387,6 +387,7 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
             'ringtone': self.txtCustomRingtone.text()
         })
         self.mainWindow.tblPhoneBook.setData(self.mainWindow.phoneBook)
+        self.mainWindow.tblCalls.setData(self.mainWindow.callHistory, self.mainWindow.phoneBook)
         savePhoneBook(self.mainWindow.phoneBook)
         self.close()
 
@@ -457,6 +458,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
 
     def __init__(self, *args):
         self.calls = {}
+        self.localPhoneBookEntries = {}
         QtWidgets.QTableWidget.__init__(self, *args)
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         #self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -466,7 +468,12 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         super(CallHistoryTable, self).keyPressEvent(event)
         if(not event.isAutoRepeat()): self.keyPressed.emit(event)
 
-    def setData(self, calls):
+    def getDisplayNameFromLocalPhoneBook(self, number):
+        for item in self.localPhoneBookEntries:
+            if(item['number'].strip() == number.strip()):
+                return item['displayName']
+
+    def setData(self, calls, localPhoneBookEntries):
         if(isDarkMode(self.palette())):
             self.iconIncoming = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.light.svg')
             self.iconOutgoing = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.light.svg')
@@ -476,6 +483,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         self.iconIncomingMissed = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/incoming.missed.svg')
 
         self.calls = calls
+        self.localPhoneBookEntries = localPhoneBookEntries
         self.setRowCount(len(self.calls))
         self.setColumnCount(3)
 
@@ -496,7 +504,10 @@ class CallHistoryTable(QtWidgets.QTableWidget):
                 if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 0, newItem)
 
-            newItem = QtWidgets.QTableWidgetItem(call['displayName'])
+            displayName = call['displayName'] if call.get('displayName','')!=call.get('number','') else ''
+            if(not displayName): displayName = self.getDisplayNameFromLocalPhoneBook(call.get('number',''))
+            if(not displayName): displayName = call.get('number', '?')
+            newItem = QtWidgets.QTableWidgetItem(displayName)
             if(color != None): newItem.setForeground(QtGui.QBrush(color))
             self.setItem(counter, 1, newItem)
 
@@ -655,7 +666,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         gridCalls = QtWidgets.QGridLayout()
         self.tblCalls = CallHistoryTable()
-        self.tblCalls.setData(self.callHistory)
+        self.tblCalls.setData(self.callHistory, self.phoneBook)
         self.tblCalls.keyPressed.connect(self.tblCallsKeyPressed)
         self.tblCalls.doubleClicked.connect(self.recallHistory)
         gridCalls.addWidget(self.tblCalls, 0, 0)
@@ -922,12 +933,13 @@ class MainWindow(QtWidgets.QMainWindow):
         for index in sorted(indices, reverse=True):
             del self.phoneBook[index.row()]
         self.tblPhoneBook.setData(self.phoneBook)
+        self.tblCalls.setData(self.callHistory, self.phoneBook)
         savePhoneBook(self.phoneBook)
     def delCallsEntry(self, e):
         indices = self.tblCalls.selectionModel().selectedRows()
         for index in sorted(indices, reverse=True):
             del self.callHistory[index.row()]
-        self.tblCalls.setData(self.callHistory)
+        self.tblCalls.setData(self.callHistory, self.phoneBook)
         saveCallHistory(self.callHistory)
 
     CALL_HISTORY_OUTGOING = 1
@@ -937,7 +949,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def addCallToHistory(self, displayName, number, type):
         self.callHistory.insert(0, {'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'displayName':displayName, 'number':number, 'type':type})
         self.callHistory = self.callHistory[:MainWindow.CALL_HISTORY_MAX_ITEMS]
-        self.tblCalls.setData(self.callHistory)
+        self.tblCalls.setData(self.callHistory, self.phoneBook)
         saveCallHistory(self.callHistory)
 
     STATUS_OK = 0
@@ -1069,20 +1081,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
-            callerText = self.sipHandler.currentCall['headers']['From_parsed_text']
+            callerText = self.getRemotePartyText('From_parsed_text')
             subjectText = ''
             if('Subject' in self.sipHandler.currentCall['headers']):
-                subjectText = translate('Subject')+': '+self.sipHandler.currentCall['headers']['Subject']
+                subjectText = translate('Subject')+': '+self.sipHandler.currentCall['headers']['Subject']+"\n"
             if('Contact' in self.sipHandler.currentCall['headers']):
                 for item in self.sipHandler.currentCall['headers']['Contact'].split(';'):
                     keyValue = item.split('=')
                     if(len(keyValue) > 1 and keyValue[0] == 'subject'):
-                        subjectText = translate('Subject')+': '+urllib.parse.unquote_plus(keyValue[1])
+                        subjectText = translate('Subject')+': '+urllib.parse.unquote_plus(keyValue[1])+"\n"
             diversionText = ''
             if('Diversion' in self.sipHandler.currentCall['headers']):
-                diversionText = translate('Forwarded for')+': '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]
+                diversionText = translate('Forwarded for')+': '+self.sipHandler.currentCall['headers']['Diversion'].split(';')[0]+"\n"
 
-            self.incomingCallWindow = IncomingCallWindow(callerText, (subjectText+"\n"+diversionText).strip())
+            self.incomingCallWindow = IncomingCallWindow(callerText, (subjectText+diversionText).strip())
             try:
                 self.startRingtone(self.sipHandler.currentCall['number'])
             except Exception as e:
@@ -1097,7 +1109,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif(status == SipHandler.INCOMING_CALL_ACCEPTED):
             self.addCallToHistory(self.sipHandler.currentCall['headers']['From_parsed_text'], self.sipHandler.currentCall['headers']['From_parsed_number'], MainWindow.CALL_HISTORY_INCOMING)
             self.closeIncomingCallWindow()
-            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['From_parsed_text'] if 'From_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], False)
+            self.callWindow = CallWindow(self.getRemotePartyText('From_parsed_text'), False)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
 
@@ -1139,7 +1151,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def evtOutgoingCallHandler(self, status, text):
         if(status == SipHandler.OUTGOING_CALL_TRYING):
-            self.outgoingCallWindow = OutgoingCallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
+            self.outgoingCallWindow = OutgoingCallWindow(self.getRemotePartyText('To_parsed_text'))
             self.outgoingCallWindow.finished.connect(self.outgoingCallWindowFinished)
             self.outgoingCallWindow.show()
 
@@ -1149,13 +1161,13 @@ class MainWindow(QtWidgets.QMainWindow):
             showErrorDialog(translate('Call Failed'), translate('This line is currently busy'), '', icon=QtWidgets.QMessageBox.Warning)
 
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
-            self.outgoingCallWindow.lblTo.setText(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'])
+            self.outgoingCallWindow.lblTo.setText(self.getRemotePartyText('To_parsed_text'))
             self.addCallToHistory(self.sipHandler.currentCall['headers']['To_parsed_text'], self.sipHandler.currentCall['headers']['To_parsed_number'], MainWindow.CALL_HISTORY_OUTGOING)
             self.startRingtone(self.sipHandler.currentCall['number'])
 
         elif(status == SipHandler.OUTGOING_CALL_ACCEPTED):
             self.closeOutgoingCallWindow()
-            self.callWindow = CallWindow(self.sipHandler.currentCall['headers']['To_parsed_text'] if 'To_parsed_text' in self.sipHandler.currentCall['headers'] else self.sipHandler.currentCall['number'], True)
+            self.callWindow = CallWindow(self.getRemotePartyText('To_parsed_text'), True)
             self.callWindow.finished.connect(self.callWindowFinished)
             self.callWindow.show()
 
@@ -1182,18 +1194,33 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtCallClosedHandler(self):
         self.callWindow.close()
 
-    def getRingtoneFile(self, number):
-        if(number):
-            for entry in self.phoneBook:
-                if('number' in entry and entry['number'].strip().replace('+', '00') == number.strip().replace('+', '00')):
-                    if('ringtone' in entry and os.path.isfile(entry['ringtone'])):
-                        return entry['ringtone']
-        if(os.path.isfile(self.ringtoneFile)):
-            return self.ringtoneFile
-        return self.defaultRingtoneFile
+    def getRemotePartyText(self, headerField):
+        remotePartyText = self.sipHandler.currentCall.get('headers',{}).get(headerField,'')
+        if(remotePartyText and remotePartyText != self.sipHandler.currentCall['number']):
+            return remotePartyText
+
+        phoneBookEntry = self.getLocalPhoneBookEntry(self.sipHandler.currentCall['number'])
+        if(phoneBookEntry and phoneBookEntry.get('displayName','')):
+            return phoneBookEntry['displayName']
+        else:
+            return self.sipHandler.currentCall['number']
+
+    def getLocalPhoneBookEntry(self, number):
+        if(not number): return None
+        for entry in self.phoneBook:
+            if(entry.get('number','').strip().replace('+', '00') == number.strip().replace('+', '00')):
+                return entry
+
     def startRingtone(self, number):
+        soundFilePath = self.defaultRingtoneFile
+        if(os.path.isfile(self.ringtoneFile)):
+            soundFilePath = self.ringtoneFile
+        phoneBookEntry = self.getLocalPhoneBookEntry(number)
+        if(phoneBookEntry and os.path.isfile(phoneBookEntry.get('ringtone',''))):
+            soundFilePath = phoneBookEntry['ringtone']
+
         self.ringtonePlayer = AudioPlayer(
-            self.getRingtoneFile(number),
+            soundFilePath,
             self.sipHandler.audio,
             self.ringtoneOutputDeviceNames
         )
