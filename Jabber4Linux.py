@@ -1297,7 +1297,12 @@ if __name__ == '__main__':
         sys.exit(exitCode)
 
     else:
-        # show login window on first startup
+        # do not do anything if hidden startup was requested and J4L was not set up yet
+        if args.hidden:
+            print('Hidden startup requested but no configuration found. Exiting.')
+            sys.exit(0)
+
+        # show login window on first normal startup
         window = LoginWindow(debug=args.debug)
         if window.exec_() == QtWidgets.QDialog.Accepted:
             sys.exit(app.exec_())

@@ -22,9 +22,11 @@ fi
 mkdir -p jabber4linux/usr/share/jabber4linux/lang
 mkdir -p jabber4linux/usr/share/jabber4linux/assets
 mkdir -p jabber4linux/usr/share/applications
+mkdir -p jabber4linux/etc/xdg/autostart
 
 # copy files in place
-cp ../../assets/*.desktop jabber4linux/usr/share/applications
+cp ../../assets/jabber4linux-autostart.desktop jabber4linux/etc/xdg/autostart
+cp ../../assets/jabber4linux.desktop jabber4linux/usr/share/applications
 cp ../../*.py jabber4linux/usr/share/jabber4linux
 cp ../../lang/*.qm jabber4linux/usr/share/jabber4linux/lang
 cp ../../assets/*.svg jabber4linux/usr/share/jabber4linux/assets

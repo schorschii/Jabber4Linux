@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Jabber4Linux
+Exec=/usr/share/jabber4linux/Jabber4Linux.py --hidden
+Terminal=false
+Icon=/usr/share/jabber4linux/assets/tux-phone.svg
+Categories=Application;Utility
+Comment=Unofficial Linux implementation of Cisco Jabber softphone
+
+# execute `update-desktop-database` after copying into /etc/xdg/autostart
