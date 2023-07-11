@@ -386,6 +386,7 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
             'number': self.txtNumber.text(),
             'ringtone': self.txtCustomRingtone.text()
         })
+        self.mainWindow.phoneBook = sorted(self.mainWindow.phoneBook, key=lambda d: d['displayName'])
         self.mainWindow.tblPhoneBook.setData(self.mainWindow.phoneBook)
         self.mainWindow.tblCalls.setData(self.mainWindow.callHistory, self.mainWindow.phoneBook)
         savePhoneBook(self.mainWindow.phoneBook)
@@ -452,6 +453,7 @@ class PhoneBookTable(QtWidgets.QTableWidget):
         ])
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
+        self.clearSelection()
 
 class CallHistoryTable(QtWidgets.QTableWidget):
     keyPressed = QtCore.pyqtSignal(QtGui.QKeyEvent)
@@ -524,6 +526,7 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         ])
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
+        self.clearSelection()
 
 class PhoneBookSearchModel(QtGui.QStandardItemModel):
     finished = QtCore.pyqtSignal(list)
@@ -944,6 +947,17 @@ class MainWindow(QtWidgets.QMainWindow):
             break
     def delPhoneBookEntry(self, e):
         indices = self.tblPhoneBook.selectionModel().selectedRows()
+        if(len(indices) == 0): return
+
+        # confirm
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle(translate('Remove'))
+        msg.setText(translate('Are you sure you want to delete %s item(s) from the list?') % str(len(indices)))
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        msg.button(QtWidgets.QMessageBox.Cancel).setText(translate('Cancel'))
+        if(msg.exec_() == QtWidgets.QMessageBox.Cancel): return
+
         for index in sorted(indices, reverse=True):
             del self.phoneBook[index.row()]
         self.tblPhoneBook.setData(self.phoneBook)
@@ -951,6 +965,17 @@ class MainWindow(QtWidgets.QMainWindow):
         savePhoneBook(self.phoneBook)
     def delCallsEntry(self, e):
         indices = self.tblCalls.selectionModel().selectedRows()
+        if(len(indices) == 0): return
+
+        # confirm
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle(translate('Remove'))
+        msg.setText(translate('Are you sure you want to delete %s item(s) from the list?') % str(len(indices)))
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        msg.button(QtWidgets.QMessageBox.Cancel).setText(translate('Cancel'))
+        if(msg.exec_() == QtWidgets.QMessageBox.Cancel): return
+
         for index in sorted(indices, reverse=True):
             del self.callHistory[index.row()]
         self.tblCalls.setData(self.callHistory, self.phoneBook)

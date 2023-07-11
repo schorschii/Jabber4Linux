@@ -223,5 +223,9 @@
         <source>SIP registration successful</source>
         <translation>SIP-Registrierung erfolgreich</translation>
     </message>
+    <message>
+        <source>Are you sure you want to delete %s item(s) from the list?</source>
+        <translation>Sind Sie sicher, dass Sie %s Element(e) aus der Liste entfernen möchten?</translation>
+    </message>
 </context>
 </TS>
