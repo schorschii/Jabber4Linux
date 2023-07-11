@@ -331,7 +331,7 @@ class SipHandler(threading.Thread):
         except Exception as e:
             # if this is a reconnection attempt after "connection closed closed by peer",
             # it is normal that sock.shutdown() raises an error since it is already closed
-            traceback.print_exc()
+            print('Failed to shutdown SIP socket:', e)
         self.evtRegistrationStatusChanged.emit(self.REGISTRATION_INACTIVE, 'Session closed by user')
 
     def acceptCall(self):
