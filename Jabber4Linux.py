@@ -1139,8 +1139,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
             callerText = self.getRemotePartyText('From_parsed_text')
-            subjectText = translate('Subject')+': '+self.getSubjectText()+"\n"
-            diversionText = translate('Forwarded for')+': '+self.getDiversionText()+"\n"
+            subjectText = (translate('Subject')+': '+self.getSubjectText()+"\n") if self.getSubjectText() else ''
+            diversionText = (translate('Forwarded for')+': '+self.getDiversionText()+"\n") if self.getDiversionText() else ''
             self.incomingCallWindow = IncomingCallWindow(callerText, (subjectText+diversionText).strip())
             try:
                 self.startRingtone(self.sipHandler.currentCall['number'])
