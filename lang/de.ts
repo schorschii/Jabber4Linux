@@ -108,8 +108,8 @@
         <translation>Klingelton</translation>
     </message>
     <message>
-        <source>Add Phone Book Entry</source>
-        <translation>Telefonbucheintrag hinzufügen</translation>
+        <source>Phone Book Entry</source>
+        <translation>Telefonbucheintrag</translation>
     </message>
     <message>
         <source>Ringtone File</source>

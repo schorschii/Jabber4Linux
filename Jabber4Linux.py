@@ -337,9 +337,10 @@ class CallWindow(QtWidgets.QDialog):
         self.callTimeInterval.start()
 
 class PhoneBookEntryWindow(QtWidgets.QDialog):
-    def __init__(self, mainWindow, presetNumber=None, *args, **kwargs):
+    def __init__(self, mainWindow, number=None, entry=None, *args, **kwargs):
         super(PhoneBookEntryWindow, self).__init__(*args, **kwargs)
         self.mainWindow = mainWindow
+        self.entry = entry
 
         # window layout
         layout = QtWidgets.QGridLayout()
@@ -347,12 +348,14 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.lblCall = QtWidgets.QLabel(translate('Name'))
         layout.addWidget(self.lblCall, 0, 0)
         self.txtName = QtWidgets.QLineEdit()
+        if(entry != None): self.txtName.setText( self.mainWindow.phoneBook[entry]['displayName'] )
         layout.addWidget(self.txtName, 0, 1)
 
         self.lblCall = QtWidgets.QLabel(translate('Number'))
         layout.addWidget(self.lblCall, 1, 0)
         self.txtNumber = QtWidgets.QLineEdit()
-        if(presetNumber): self.txtNumber.setText(presetNumber)
+        if(entry != None): self.txtNumber.setText( self.mainWindow.phoneBook[entry]['number'] )
+        elif(number): self.txtNumber.setText(number)
         layout.addWidget(self.txtNumber, 1, 1)
 
         self.lblCall = QtWidgets.QLabel(translate('Ringtone'))
@@ -374,18 +377,23 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.setLayout(layout)
 
         # window properties
-        self.setWindowTitle(translate('Add Phone Book Entry'))
+        self.setWindowTitle(translate('Phone Book Entry'))
 
     def clickChooseRingtone(self, e):
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(self, translate('Ringtone File'), self.txtCustomRingtone.text(), 'WAV Audio Files (*.wav);;')
         if fileName: self.txtCustomRingtone.setText(fileName)
 
     def accept(self):
-        self.mainWindow.phoneBook.append({
-            'displayName': self.txtName.text(),
-            'number': self.txtNumber.text(),
-            'ringtone': self.txtCustomRingtone.text()
-        })
+        if(self.entry != None):
+            self.mainWindow.phoneBook[self.entry]['displayName'] = self.txtName.text()
+            self.mainWindow.phoneBook[self.entry]['number'] = self.txtNumber.text()
+            self.mainWindow.phoneBook[self.entry]['ringtone'] = self.txtCustomRingtone.text()
+        else:
+            self.mainWindow.phoneBook.append({
+                'displayName': self.txtName.text(),
+                'number': self.txtNumber.text(),
+                'ringtone': self.txtCustomRingtone.text()
+            })
         self.mainWindow.phoneBook = sorted(self.mainWindow.phoneBook, key=lambda d: d['displayName'])
         self.mainWindow.tblPhoneBook.setData(self.mainWindow.phoneBook)
         self.mainWindow.tblCalls.setData(self.mainWindow.callHistory, self.mainWindow.phoneBook)
@@ -634,11 +642,13 @@ class MainWindow(QtWidgets.QMainWindow):
         if(isDarkMode(self.palette())):
             self.iconCall = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.light.svg')
             self.iconAdd = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/add.light.svg')
+            self.iconEdit = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/edit.light.svg')
             self.iconAddBook = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/add-book.light.svg')
             self.iconDelete = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/delete.light.svg')
         else:
             self.iconCall = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/outgoing.svg')
             self.iconAdd = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/add.svg')
+            self.iconEdit = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/edit.svg')
             self.iconAddBook = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/add-book.svg')
             self.iconDelete = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/delete.svg')
 
@@ -713,6 +723,11 @@ class MainWindow(QtWidgets.QMainWindow):
         btnAddPhoneBookEntry.setToolTip(translate('Add'))
         btnAddPhoneBookEntry.clicked.connect(self.addPhoneBookEntry)
         buttonBox.addWidget(btnAddPhoneBookEntry)
+        btnEditPhoneBookEntry = QtWidgets.QPushButton()
+        btnEditPhoneBookEntry.setIcon(self.iconEdit)
+        btnEditPhoneBookEntry.setToolTip(translate('Edit'))
+        btnEditPhoneBookEntry.clicked.connect(self.editPhoneBookEntry)
+        buttonBox.addWidget(btnEditPhoneBookEntry)
         btnDelPhoneBookEntry = QtWidgets.QPushButton()
         btnDelPhoneBookEntry.setIcon(self.iconDelete)
         btnDelPhoneBookEntry.setToolTip(translate('Remove'))
@@ -936,10 +951,16 @@ class MainWindow(QtWidgets.QMainWindow):
     def addPhoneBookEntry(self, e):
         dialog = PhoneBookEntryWindow(self)
         dialog.exec_()
+    def editPhoneBookEntry(self, e):
+        indices = self.tblPhoneBook.selectionModel().selectedRows()
+        for index in sorted(indices):
+            dialog = PhoneBookEntryWindow(self, entry=index.row())
+            dialog.exec_()
+            break
     def addCallsEntryToPhoneBook(self, e):
         indices = self.tblCalls.selectionModel().selectedRows()
         for index in sorted(indices):
-            dialog = PhoneBookEntryWindow(self, self.callHistory[index.row()]['number'])
+            dialog = PhoneBookEntryWindow(self, number=self.callHistory[index.row()]['number'])
             dialog.exec_()
             break
     def delPhoneBookEntry(self, e):

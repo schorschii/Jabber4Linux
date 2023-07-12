@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="24px"
+   viewBox="0 0 24 24"
+   width="24px"
+   version="1.1"
+   sodipodi:docname="edit.svg"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+     <style>
+      path, g, polygon {
+        fill: #ffffff;
+      }
+    </style>
+  <path
+     d="M 14.200043,8.8154824 15.183182,9.7986221 5.5013934,19.480411 H 4.5182538 v -0.98314 L 14.200043,8.8154824 m 3.847068,-6.4331531 c -0.267158,0 -0.545001,0.106863 -0.748041,0.3099028 l -1.955593,1.955593 4.007363,4.0073628 1.955593,-1.9555931 c 0.416765,-0.4167657 0.416765,-1.0900026 0,-1.5067684 L 18.805838,2.6922321 C 18.592112,2.478506 18.324955,2.3823293 18.047111,2.3823293 Z M 14.200043,5.7912593 2.3809936,17.610308 v 4.007363 H 6.3883564 L 18.207405,9.7986221 Z"
+     style="stroke-width:1.06863" />
+</svg>
