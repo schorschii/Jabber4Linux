@@ -323,7 +323,7 @@ class SipHandler(threading.Thread):
 
     def stop(self):
         if(self.debug): print(':: closing SIP(S) connection')
-        if(self.registerRenewalInterval and self.registerRenewalInterval.is_alive()):
+        if(hasattr(self, 'registerRenewalInterval') and self.registerRenewalInterval.is_alive()):
             self.registerRenewalInterval.cancel()
         try:
             # when using close(), the socket later still raises the timeout exception
