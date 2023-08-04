@@ -55,8 +55,10 @@ class UdsWrapper():
         return f'Basic {token}'
 
     def getUserDetails(self):
-        with requests.get(f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}', headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}'
+        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
+            if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
             values = {
                 'id': document.getElementsByTagName('id')[0].firstChild.data,
@@ -111,8 +113,10 @@ class UdsWrapper():
             return values
 
     def getDevices(self):
-        with requests.get(f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/devices', headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/devices'
+        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
+            if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
             values = []
             for item in document.getElementsByTagName('device'):
@@ -126,8 +130,10 @@ class UdsWrapper():
             return values
 
     def getDevice(self, id):
-        with requests.get(f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/device/{urllib.parse.quote(id)}', headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/device/{urllib.parse.quote(id)}'
+        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
+            if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
             values = {
                 'id': document.getElementsByTagName('id')[0].firstChild.data,
@@ -144,7 +150,7 @@ class UdsWrapper():
             for item in document.getElementsByTagName('provision')[0].getElementsByTagName('uri'):
                 provisionResult = requests.get(item.firstChild.data, headers={'Authorization':self.basic_auth(self.username,self.password)})
                 try:
-                    if(self.debug): print(id, item.firstChild.data, provisionResult.text)
+                    if(self.debug): print(item.firstChild.data, '::', provisionResult.text, "\n")
                     document2 = expatbuilder.parseString(provisionResult.text, False).documentElement
                     values['deviceSecurityMode'] = document2.getElementsByTagName('deviceSecurityMode')[0].firstChild.data
                     values['transportLayerProtocol'] = document2.getElementsByTagName('transportLayerProtocol')[0].firstChild.data
