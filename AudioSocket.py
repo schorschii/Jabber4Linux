@@ -29,6 +29,7 @@ class InputAudioSocket(threading.Thread):
 
         # open RTP UDP socket for incoming audio data
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_PRIORITY, 6)
         self.sock.bind((interface, 0))
 
         # find audio device
@@ -167,8 +168,10 @@ class OutputAudioSocket(threading.Thread):
         self.dstPortCtrl = dstPort + 1
         # setup RTP socket
         self.sock = sock
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_PRIORITY, 6)
         # setup RTCP socket (using RTP port + 1)
         self.sockCtrl = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sockCtrl.setsockopt(socket.SOL_SOCKET, socket.SO_PRIORITY, 6)
         self.sockCtrl.bind(('0.0.0.0', self.sock.getsockname()[1] + 1))
         time.sleep(0.1)
 
