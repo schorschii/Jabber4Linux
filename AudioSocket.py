@@ -30,6 +30,10 @@ class InputAudioSocket(threading.Thread):
         # open RTP UDP socket for incoming audio data
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_PRIORITY, 6)
+        # https://en.wikipedia.org/wiki/Type_of_service
+        # https://github.com/lattera/glibc/blob/master/sysdeps/generic/netinet/ip.h#L187C9-L187C22
+        # IPTOS_DSCP_EF, like Cisco Jabber
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_TOS, 0xb8)
         self.sock.bind((interface, 0))
 
         # find audio device
