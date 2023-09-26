@@ -44,7 +44,7 @@ sudo -H pip3 install -r requirements.txt
 ## SIP Transport Encryption (SIPS)
 Your CUCM administrator can choose whether your softphone should operate encrypted using SIPS (this option is called "Secure" in the management interface) or unencrypted using plaintext SIP ("Non-Secure").
 
-Besides SIP, SIPS is also supported by Jabber4Linux. For the TLS connection, a client certificate (called "LSC" - Locally Significant Certificate) is necessary, which is signed using the Cisco [CAPF](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/12_5_1SU1/systemConfig/cucm_b_system-configuration-guide-1251su1/cucm_b_system-configuration-guide-1251su1_restructured_chapter_0101100.html#reference_AA61A26C5ABC7EE8693F280F7FDA9617) [protocol](https://www.cisco.com/c/en/us/support/docs/unified-communications/unified-communications-manager-callmanager/212214-Tech-Note-on-CAPF-Certificate-Signed-by.html) on [port 3804](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/11_5_1/sysConfig/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151/CUCM_BK_SE5DAF88_00_cucm-system-configuration-guide-1151_chapter_01010100.html#:~:text=Communications%20Manager%20(CAPF)-,3804,-/%20TCP) from the CUCM server. The pitfall is that such a certificate is only issued once; every further signing request will be denied by the CUCM server. If you already used Cisco Jabber on Windows before, you need to export the softphone certificate from the Windows cert store. Alternatively, you can contact your CUCM admin who can reset your softphone instance. This will allow your client to get a new certificate once again.
+Besides SIP, SIPS is also supported by Jabber4Linux. For the TLS connection, a client certificate (called "LSC" - Locally Significant Certificate) is necessary, which is signed using the Cisco [CAPF protocol](docs/Reverse%20Engineering.md#capf-protocol) on port 3804 from the CUCM server. The pitfall is that such a certificate is only issued once; every further signing request will be denied by the CUCM server. If you already used Cisco Jabber on Windows before, you need to export the softphone certificate from the Windows cert store. Alternatively, you can contact your CUCM admin who can reset your softphone instance. This will allow your client to get a new certificate once again.
 
 <details>
 <summary>Export Certificate from Windows Cert Store</summary>
@@ -79,7 +79,9 @@ lrelease lang/de.ts
 ```
 
 ### Resources
-- Wireshark ftw
+Reverse engineering findings were documented in the [docs](docs/) folder. Wireshark was the biggest help for this project.
+
+Helpful links:
 - [SIP](https://de.wikipedia.org/wiki/Session_Initiation_Protocol)
 - [SIP Requests](https://de.wikipedia.org/wiki/SIP-Anfragen)
 - [RTP](https://de.wikipedia.org/wiki/Real-Time_Transport_Protocol)
