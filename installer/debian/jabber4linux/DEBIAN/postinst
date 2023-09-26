@@ -7,6 +7,6 @@ set -e
 . /usr/share/debconf/confmodule
 
 # install modules which are not available in the Debian/Ubuntu repos
-pip3 install --upgrade PyAudio opuslib
+pip3 install --upgrade PyAudio opuslib asn1
 
 update-desktop-database

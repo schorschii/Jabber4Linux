@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
 
+from CapfWrapper import CapfWrapper
 from UdsWrapper import UdsWrapper
 from SipHandler import SipHandler
 from AudioSocket import AudioPlayer
@@ -1052,6 +1053,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 if(not device['certHash']):
                     raise Exception('deviceSecurityMode is enabled but no certHash given?!')
                 certHash = device['certHash'].lower()
+
+                for callManager in device['callManagers']:
+                    try:
+                        capf = CapfWrapper(callManager['address'], debug=self.debug)
+                        capf.requestCertificate(device['name'], CLIENT_CERTS_DIR+'/'+device['name']+'_'+str(time.time())+'.pem')
+                        break # break the loop and exit if cert was issued successfully
+                    except Exception as e:
+                        print(':: CAPF Error:', e) # ignore timeout and try next server (only one server speaks CAPF)
+
                 if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
                 for fileName in os.listdir(CLIENT_CERTS_DIR):
                     filePath = CLIENT_CERTS_DIR+'/'+fileName
