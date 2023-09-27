@@ -105,6 +105,7 @@ Length | Description     | Content (hex)
 ## Status Codes
 Discovered status codes:
 
+- `0x01`: OK
 - `0x07`: Server declined request: a certificate was already issued for this phone
 - `0x09`: Server declined request: no phone found with this name
 
@@ -120,4 +121,4 @@ The CSR is a DER encoded ASN.1 message with the following structure, discovered 
       - modulus INTEGER (2048 bit)
       - exponent INTEGER 65537
 
-Please have a look at my sample implementation `generateCsr()` in `CapfWrapper.py` how to correctly construct such an ASN.1 message in Python.
+Please have a look at my sample implementation `generateCsr()` in [CapfWrapper.py](../CapfWrapper.py) how to correctly construct such an ASN.1 message in Python.
