@@ -421,7 +421,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def open(self):
         self.parentWidget.show()
         if(self.parentWidget.status == MainWindow.STATUS_NOTIFY):
-            self.parentWidget.setTrayIcon(MainWindow.STATUS_OK)
+            self.parentWidget.setTrayIcon(MainWindow.STATUS_OK, True) # remove notification icon when clicked on tray icon
 
     def exit(self):
         self.parentWidget.close()
@@ -1013,13 +1013,19 @@ class MainWindow(QtWidgets.QMainWindow):
     STATUS_OK = 0
     STATUS_NOTIFY = 1
     STATUS_FAIL = 2
-    def setTrayIcon(self, status):
-        self.status = status
+    def setTrayIcon(self, newStatus, force=False):
         newIcon = None
-        if(status == self.STATUS_OK): newIcon = self.iconTrayNormal
-        elif(status == self.STATUS_NOTIFY): newIcon = self.iconTrayNotification
-        else: newIcon = self.iconTrayFail
+        if(newStatus == self.STATUS_OK):
+            if(force or self.status != self.STATUS_NOTIFY): # overwrite STATUS_NOTIFY only if forced
+                newIcon = self.iconTrayNormal
+            else:
+                return # 's bleibt so wie's is!!
+        elif(newStatus == self.STATUS_NOTIFY):
+            newIcon = self.iconTrayNotification
+        else:
+            newIcon = self.iconTrayFail
         self.trayIcon.setIcon(newIcon)
+        self.status = newStatus
 
     def clickRegister(self, e):
         self.registrationFeedbackFlag = True
