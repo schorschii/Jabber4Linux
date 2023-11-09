@@ -141,8 +141,9 @@ class AboutWindow(QtWidgets.QDialog):
         self.setWindowTitle('About')
 
 class LoginWindow(QtWidgets.QDialog):
-    def __init__(self, debug=False, *args, **kwargs):
+    def __init__(self, mainWindow=None, debug=False, *args, **kwargs):
         self.debug = debug
+        self.mainWindow = mainWindow
         super(LoginWindow, self).__init__(*args, **kwargs)
 
         # window layout
@@ -193,10 +194,22 @@ class LoginWindow(QtWidgets.QDialog):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
+        # directly focus the username field if the server was auto-discovered
+        if discoveredServer != None:
+            self.txtUsername.setFocus()
+
     def closeEvent(self, event):
         QtCore.QCoreApplication.exit()
 
     def login(self):
+        self.txtUsername.setEnabled(False)
+        self.txtPassword.setEnabled(False)
+        self.txtServerName.setEnabled(False)
+        self.txtServerPort.setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Please wait...'))
+
         try:
             # query necessary details from API
             # throws auth & connection errors, preventing to go to the main window on error
@@ -209,13 +222,25 @@ class LoginWindow(QtWidgets.QDialog):
                     devices.append(deviceDetails)
             if len(devices) == 0: raise Exception('Unable to find a Jabber softphone device')
 
-            window = MainWindow({'user':userDetails, 'devices':devices}, debug=self.debug)
-            window.show()
-
+            if(self.mainWindow == None):
+                self.mainWindow = MainWindow({'user':userDetails, 'devices':devices}, debug=self.debug)
+            else:
+                self.mainWindow.user = userDetails
+                self.mainWindow.devices = devices
+            self.mainWindow.show()
             self.accept()
+
         except Exception as e:
             print(traceback.format_exc())
             showErrorDialog(translate('Login Error'), str(e))
+
+            self.txtUsername.setEnabled(True)
+            self.txtPassword.setEnabled(True)
+            self.txtServerName.setEnabled(True)
+            self.txtServerPort.setEnabled(True)
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(True)
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Login'))
 
 class IncomingCallWindow(QtWidgets.QDialog):
     def __init__(self, callerText, diversionText, *args, **kwargs):
@@ -664,13 +689,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lblPhone = QtWidgets.QLabel(translate('Line'))
         grid.addWidget(self.lblPhone, 0, 0)
         self.sltPhone = QtWidgets.QComboBox()
-        phoneIndex = 0
-        for device in self.devices:
-            self.sltPhone.addItem(str(device['number']))
-            if('default' in device and device['default']):
-                self.sltPhone.setCurrentIndex(phoneIndex)
-            phoneIndex += 1
-        self.sltPhone.currentIndexChanged.connect(self.sltPhoneChanged)
+        self.buildPhoneSelector()
         grid.addWidget(self.sltPhone, 0, 1)
         self.lblRegistrationStatus = QtWidgets.QLabel('...')
         grid.addWidget(self.lblRegistrationStatus, 0, 2)
@@ -775,6 +794,9 @@ class MainWindow(QtWidgets.QMainWindow):
         registerAction.setShortcut('F5')
         registerAction.triggered.connect(self.clickRegister)
         fileMenu.addAction(registerAction)
+        refreshConfigAction = QtWidgets.QAction(translate('Refresh &Config'), self)
+        refreshConfigAction.triggered.connect(self.clickRefreshConfig)
+        fileMenu.addAction(refreshConfigAction)
 
         fileMenu.addSeparator()
         callAction = QtWidgets.QAction(translate('Start &Call'), self)
@@ -868,6 +890,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # start SIP registration
         self.initSipSession(self.sltPhone.currentIndex())
+
+    def buildPhoneSelector(self):
+        # do not fire index changed events when building the list
+        try:
+            self.sltPhone.currentIndexChanged.disconnect(self.sltPhoneChanged)
+        except Exception: pass
+
+        phoneIndex = 0
+        self.sltPhone.clear()
+        for device in self.devices:
+            self.sltPhone.addItem(str(device['number']))
+            if('default' in device and device['default']):
+                self.sltPhone.setCurrentIndex(phoneIndex)
+            phoneIndex += 1
+        self.sltPhone.currentIndexChanged.connect(self.sltPhoneChanged)
 
     def closeEvent(self, event):
         saveSettings({
@@ -1031,6 +1068,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.registrationFeedbackFlag = True
         self.initSipSession(self.sltPhone.currentIndex())
 
+    def clickRefreshConfig(self, e):
+        window = LoginWindow(mainWindow=self, debug=self.debug)
+        if window.exec_() == QtWidgets.QDialog.Accepted:
+            self.buildPhoneSelector()
+            self.registrationFeedbackFlag = True
+            self.initSipSession(self.sltPhone.currentIndex())
+
     def sltPhoneChanged(self, sender):
         self.initSipSession(self.sltPhone.currentIndex())
 
@@ -1049,26 +1093,37 @@ class MainWindow(QtWidgets.QMainWindow):
             # get selected device details
             device = self.devices[deviceIndex]
             port = device['callManagers'][0]['sipPort']
+            certHash = device['certHash'].lower() if device['certHash'] else None
+
+            # try to get a client certificate via CAPF on startup
+            if('capfServers' in device):
+                for capfServer in device['capfServers']:
+                    try:
+                        targetCertFile = CLIENT_CERTS_DIR+'/'+device['name']+'_'+str(time.time())+'.pem'
+                        capf = CapfWrapper(capfServer['address'], port=int(capfServer['port']), debug=self.debug)
+                        capf.requestCertificate(device['name'], targetCertFile)
+
+                        # get new cert hash
+                        with open(targetCertFile, 'rb') as f:
+                            cert = load_pem_x509_certificate(f.read())
+                            certHash = cert.fingerprint(hashes.MD5()).hex().lower()
+                            self.devices[deviceIndex]['certHash'] = certHash
+                            if(self.debug): print(':: CAPF succeeded', certHash, targetCertFile)
+
+                        break # break the loop and exit if cert was issued successfully
+                    except Exception as e:
+                        print(':: CAPF error:', capfServer, e) # ignore timeout and try next server
 
             # set up SIPS encryption if configured
             tlsOptions = None
             if(device['deviceSecurityMode'] == '2' or device['deviceSecurityMode'] == '3'):
                 port = device['callManagers'][0]['sipsPort']
 
-                # find/load corresponding client cert
-                if(not device['certHash']):
+                # check client cert hash
+                if(not certHash):
                     raise Exception('deviceSecurityMode is enabled but no certHash given?!')
-                certHash = device['certHash'].lower()
 
-                for callManager in device['callManagers']:
-                    try:
-                        capf = CapfWrapper(callManager['address'], debug=self.debug)
-                        capf.requestCertificate(device['name'], CLIENT_CERTS_DIR+'/'+device['name']+'_'+str(time.time())+'.pem')
-                        break # break the loop and exit if cert was issued successfully
-                    except Exception as e:
-                        print(':: CAPF Error:', e) # ignore timeout and try next server (only one server speaks CAPF)
-
-                if(self.debug): print(f':: searching certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
+                # find/load existing corresponding client cert
                 for fileName in os.listdir(CLIENT_CERTS_DIR):
                     filePath = CLIENT_CERTS_DIR+'/'+fileName
                     if(not os.path.isfile(filePath)): continue
@@ -1081,7 +1136,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                 print(f':: fingerprint of {filePath} does not match')
                         except Exception as e:
                             print(f':: unable to read certificate {filePath} ({e})')
-                    if(tlsOptions): break
+                    if(tlsOptions): break # break if correct certificate was found
                 if(not tlsOptions):
                     raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
 
@@ -1150,7 +1205,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.initSipSession(self.sltPhone.currentIndex())
                     return
 
-            showErrorDialog(translate('Registration Error'), text)
+            if('Device security mismatch: expected TLS' in text):
+                # CUCM administrator switched the phone to "secure" mode, we need to switch too
+                # todo: re-read the configuration from the server instead of switching to fixed number '3'
+                print(':: SIP registration failed:', text, ' :: automatically switching to TLS')
+                self.devices[self.sltPhone.currentIndex()]['deviceSecurityMode'] = '3'
+                self.initSipSession(self.sltPhone.currentIndex())
+            else:
+                showErrorDialog(translate('Registration Error'), text)
 
     def evtIncomingCallHandler(self, status):
         if(status == SipHandler.INCOMING_CALL_RINGING):
@@ -1312,13 +1374,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def loadSettings(suppressError=False):
     try:
+        os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        os.makedirs(CFG_DIR+'/client-certs', mode=0o700, exist_ok=True)
+        os.makedirs(CFG_DIR+'/server-certs', mode=0o700, exist_ok=True)
         with open(CFG_PATH) as f:
             return json.load(f)
     except Exception as e:
         if(not suppressError): showErrorDialog(translate('Error loading settings file'), str(e))
 def saveSettings(settings):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(CFG_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
@@ -1333,7 +1398,7 @@ def loadCallHistory(suppressError=False):
         return []
 def saveCallHistory(settings):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(HISTORY_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:
@@ -1348,7 +1413,7 @@ def loadPhoneBook(suppressError=False):
         return []
 def savePhoneBook(settings):
     try:
-        if(not os.path.isdir(CFG_DIR)): os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
+        os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
         with open(PHONEBOOK_PATH, 'w') as json_file:
             json.dump(settings, json_file, indent=4)
     except Exception as e:

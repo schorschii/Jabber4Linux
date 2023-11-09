@@ -12,6 +12,10 @@
         <translation>&amp;Registrieren</translation>
     </message>
     <message>
+        <source>Refresh &amp;Config</source>
+        <translation>&amp;Konfiguration aktualisieren</translation>
+    </message>
+    <message>
         <source>&amp;Quit</source>
         <translation>&amp;Beenden</translation>
     </message>
@@ -166,6 +170,10 @@
     <message>
         <source>Login</source>
         <translation>Anmelden</translation>
+    </message>
+    <message>
+        <source>Please wait...</source>
+        <translation>Bitte warten...</translation>
     </message>
     <message>
         <source>Yes</source>

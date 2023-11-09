@@ -145,6 +145,9 @@ class UdsWrapper():
                 'number': None,
                 'contact': None,
                 'callManagers': [],
+                'deviceSecurityMode': '0',
+                'certHash': None,
+                'capfServers': [],
             }
 
             for item in document.getElementsByTagName('provision')[0].getElementsByTagName('uri'):
@@ -155,6 +158,12 @@ class UdsWrapper():
                     values['deviceSecurityMode'] = document2.getElementsByTagName('deviceSecurityMode')[0].firstChild.data
                     values['transportLayerProtocol'] = document2.getElementsByTagName('transportLayerProtocol')[0].firstChild.data
                     values['certHash'] = document2.getElementsByTagName('certHash')[0].firstChild.data if document2.getElementsByTagName('certHash')[0].firstChild else None
+                    for capfList in document2.getElementsByTagName('capfList'):
+                        for capfEntry in capfList.getElementsByTagName('capf'):
+                            values['capfServers'].append({
+                                'address': capfEntry.getElementsByTagName('processNodeName')[0].firstChild.data if capfEntry.getElementsByTagName('processNodeName')[0].firstChild else None,
+                                'port': capfEntry.getElementsByTagName('phonePort')[0].firstChild.data if capfEntry.getElementsByTagName('phonePort')[0].firstChild else None,
+                            })
                 except Exception:
                     if(self.debug): traceback.print_exc()
                     return None

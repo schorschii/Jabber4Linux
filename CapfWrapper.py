@@ -32,7 +32,7 @@ class CapfWrapper():
         self.debug = debug
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(10)
+        self.sock.settimeout(8)
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.set_ciphers('DEFAULT')
         #context.maximum_version = ssl.TLSVersion.TLSv1_2
@@ -52,7 +52,7 @@ class CapfWrapper():
 
     def recv(self):
         buf = self.sock.recv(4096)
-        print('> ', buf.hex())
+        if(self.debug): print('> ', buf.hex())
         #print('>>', buf.decode('utf-8', errors='replace'))
 
         magic = buf[0]
@@ -63,7 +63,7 @@ class CapfWrapper():
 
     def send(self, payload):
         result = self.sock.sendall(payload)
-        print('< ', payload.hex())
+        if(self.debug): print('< ', payload.hex())
         #print('<<', ''.join(c for c in payload.decode('utf-8', errors='replace') if c.isprintable()))
         return result
 
