@@ -195,6 +195,7 @@ class UdsWrapper():
         users = []
         with requests.get(url) as response:
             response.raise_for_status()
+            response.encoding = 'UTF-8'
             document = minidom.parseString(response.text).documentElement
             for user in document.getElementsByTagName('user'):
                 users.append({
