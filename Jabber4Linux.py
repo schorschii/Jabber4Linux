@@ -1430,21 +1430,34 @@ if __name__ == '__main__':
     if(len(unknownargs) > 0 and unknownargs[0].startswith('tel:')):
         presetNumber = unknownargs[0].strip().split(':')[1].replace('+', '00')
 
-    # if a number was given, we check if an instance is already running and forward the number to its MainWindow
-    if(presetNumber):
-        try:
-            filelock.FileLock(IpcHandler.IPC_FILE, timeout=0).acquire()
-            # file could be locked - start a new instance regularly since there is no other instance running
-        except filelock._error.Timeout as e:
-            # exception is thrown when file is already locked
+    # check if an instance is already running
+    otherInstance = False
+    try:
+        filelock.FileLock(IpcHandler.IPC_FILE, timeout=0).acquire()
+        # file could be locked - start a new instance regularly since there is no other instance running
+    except filelock._error.Timeout as e:
+        # exception is thrown when file is already locked (= an instance is already running)
+        if(presetNumber):
+            # if a number was given, we forward the number to its MainWindow
             print('An instance is already running. Since a phone number was given as parameter, the number will be forwarded to the other instance and this instance will be closed immediately.')
             with open(IpcHandler.IPC_FILE, 'w') as f: f.write(presetNumber)
             sys.exit(0)
+        else:
+            otherInstance = True
 
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet(QT_STYLESHEET)
+    if(otherInstance):
+        # ask if the user really wants to start a new instance
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle(translate('Jabber4Linux is already running'))
+        msg.setText(translate('Are you sure you want to start a new instance? With multiple instances, your can use multiple softphones in simultaneously if you have access to multiple softphones.'))
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        if(msg.exec_() == QtWidgets.QMessageBox.Cancel):
+            sys.exit(0)
 
     # load QT translations
     translator = QtCore.QTranslator(app)
