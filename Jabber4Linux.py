@@ -31,7 +31,7 @@ import traceback
 
 
 PRODUCT_NAME = 'Jabber4Linux'
-PRODUCT_VERSION = '0.4'
+PRODUCT_VERSION = '0.5'
 
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
