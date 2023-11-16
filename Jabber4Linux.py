@@ -1430,6 +1430,9 @@ if __name__ == '__main__':
     if(len(unknownargs) > 0 and unknownargs[0].startswith('tel:')):
         presetNumber = unknownargs[0].strip().split(':')[1].replace('+', '00')
 
+    # load settings, create settings dir if not exists
+    settings = loadSettings(True)
+
     # check if an instance is already running
     otherInstance = False
     try:
@@ -1469,8 +1472,7 @@ if __name__ == '__main__':
         translator.load('/usr/share/jabber4linux/lang/%s.qm' % getdefaultlocale()[0])
     app.installTranslator(translator)
 
-    # load settings, show main window or login window
-    settings = loadSettings(True)
+    # show main window or login window if no config was found
     if settings != None and 'user' in settings and 'devices' in settings and len(settings['devices']) > 0:
         # directly start main window if login already done
         window = MainWindow(settings, presetNumber=presetNumber, debug=args.debug)
