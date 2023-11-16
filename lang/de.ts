@@ -235,13 +235,5 @@
         <source>Are you sure you want to delete %s item(s) from the list?</source>
         <translation>Sind Sie sicher, dass Sie %s Element(e) aus der Liste entfernen möchten?</translation>
     </message>
-    <message>
-        <source>Jabber4Linux is already running</source>
-        <translation>Jabber4Linux läuft bereits</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to start a new instance? With multiple instances, your can use multiple softphones in simultaneously if you have access to multiple softphones.</source>
-        <translation>Sind Sie sicher, dass Sie eine neue Instanz starten möchten? Mit mehreren Instanzen können Sie mehrere Softphones gleichzeitig nutzen, sofern Sie Zugriff auf mehrere Softphones haben.</translation>
-    </message>
 </context>
 </TS>

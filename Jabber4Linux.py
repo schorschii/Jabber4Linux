@@ -932,9 +932,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def evtIpcMessageReceivedHandler(self, message):
         if(message.strip() != ''):
             self.show()
-            self.txtCall.setText(message)
-            self.txtCall.selectAll()
-            self.txtCall.setFocus()
+            if(not message.strip().startswith('.')):
+                self.txtCall.setText(message)
+                self.txtCall.selectAll()
+                self.txtCall.setFocus()
 
     def eventFilter(self, source, event):
         if(event.type() == QtCore.QEvent.KeyPress
@@ -1425,6 +1426,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--hidden', action='store_true', help='Start with tray icon only (for autostart)')
     parser.add_argument('-v', '--debug', action='store_true', help='Print debug output (SIP packet contents etc.)')
+    parser.add_argument('-n', '--new-instance', action='store_true', help='Allow starting a new instance for using multiple softphones at once')
     args, unknownargs = parser.parse_known_args()
     presetNumber = None
     if(len(unknownargs) > 0 and unknownargs[0].startswith('tel:')):
@@ -1440,27 +1442,20 @@ if __name__ == '__main__':
         # file could be locked - start a new instance regularly since there is no other instance running
     except filelock._error.Timeout as e:
         # exception is thrown when file is already locked (= an instance is already running)
-        if(presetNumber):
-            # if a number was given, we forward the number to its MainWindow
-            print('An instance is already running. Since a phone number was given as parameter, the number will be forwarded to the other instance and this instance will be closed immediately.')
-            with open(IpcHandler.IPC_FILE, 'w') as f: f.write(presetNumber)
+        if(not args.new_instance):
+            if(presetNumber):
+                # if a number was given, we forward the number to the other instances MainWindow
+                print('An instance is already running. Since a phone number was given as parameter, the number will be forwarded to the other instance and this instance will be closed immediately.')
+                with open(IpcHandler.IPC_FILE, 'w') as f: f.write(presetNumber)
+            else:
+                print('An instance is already running. Opening the main windows of the other instance and closing this instance.')
+                with open(IpcHandler.IPC_FILE, 'w') as f: f.write('.')
             sys.exit(0)
-        else:
-            otherInstance = True
 
     # init QT app
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet(QT_STYLESHEET)
-    if(otherInstance):
-        # ask if the user really wants to start a new instance
-        msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Warning)
-        msg.setWindowTitle(translate('Jabber4Linux is already running'))
-        msg.setText(translate('Are you sure you want to start a new instance? With multiple instances, your can use multiple softphones in simultaneously if you have access to multiple softphones.'))
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-        if(msg.exec_() == QtWidgets.QMessageBox.Cancel):
-            sys.exit(0)
 
     # load QT translations
     translator = QtCore.QTranslator(app)
