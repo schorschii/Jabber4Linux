@@ -26,7 +26,7 @@ What (currently) doesn't:
 - video telephony
 - SRTP/ZRTP encrypted calls
 
-You can put Jabber4Linux in your autostart with parameter `--hidden` to start it only with the tray icon.
+You can put Jabber4Linux in your autostart with parameter `--hidden` to start it only with the tray icon. `--new-instance` allows you to start a second instance for using multiple softphones at once.
 
 For debugging / reporting bugs, please start Jabber4Linux from Terminal with parameter `--debug` and have a look and report the debug output.
 
@@ -44,7 +44,11 @@ sudo -H pip3 install -r requirements.txt
 ## SIP Transport Encryption (SIPS)
 Your CUCM administrator can choose whether your softphone should operate encrypted using SIPS (this option is called "Secure" in the management interface) or unencrypted using plaintext SIP ("Non-Secure").
 
-Besides SIP, SIPS is also supported by Jabber4Linux. For the TLS connection, a client certificate (called "LSC" - Locally Significant Certificate) is necessary, which is signed using the Cisco [CAPF protocol](docs/Reverse%20Engineering.md#capf-protocol) on port 3804 from the CUCM server. The pitfall is that such a certificate is only issued once; every further signing request will be denied by the CUCM server. If you already used Cisco Jabber on Windows before, you need to export the softphone certificate from the Windows cert store. Alternatively, you can contact your CUCM admin who can reset your softphone instance. This will allow your client to get a new certificate once again.
+Besides SIP, SIPS is also supported by Jabber4Linux. For the TLS connection, a client certificate (called "LSC" - Locally Significant Certificate) is necessary, which is signed using the Cisco [CAPF protocol](docs/Reverse%20Engineering.md#capf-protocol) on port 3804 of a specific CUCM server in your cluster.
+
+The pitfall is that such a certificate is only issued once; every further signing request will be denied by the CUCM server. If you already used Cisco Jabber on Windows before, you need to export the softphone certificate from the Windows cert store. Alternatively, you can contact your CUCM admin who can reset your softphone configuration. This will allow your client to get a new certificate once again. Jabber4Linux will automatically try to get such a certificate when doing the SIP registration.
+
+The normal workflow seems to be that the phone has to operate at least once in "Non-Secure" mode first to get the LSC (Trust On First Use, TOFU principle). Then, the softphone is manually set to "Secure" by a CUCM administrator. Only after that, the connection is TLS encrypted.
 
 <details>
 <summary>Export Certificate from Windows Cert Store</summary>
