@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# exit on error
+set -e
+
+# source debconf library
+#. /usr/share/debconf/confmodule
+
+DIR=/usr/share/jabber4linux
+
+# remove venv
+rm -r $DIR/build || true
+rm -r $DIR/jabber4linux/__pycache__ || true
+rm -r $DIR/venv
+rm -r $DIR/jabber4linux.egg-info

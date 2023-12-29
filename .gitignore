@@ -7,6 +7,8 @@ experiments/
 build/
 dist/
 
+*.egg-info/
+
 installer/windows/*.exe
 installer/macos/target/*
 installer/debian/*.deb

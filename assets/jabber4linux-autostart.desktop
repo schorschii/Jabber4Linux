@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=Jabber4Linux
-Exec=/usr/share/jabber4linux/Jabber4Linux.py --hidden
+Exec=jabber4linux --hidden
 Terminal=false
-Icon=/usr/share/jabber4linux/assets/tux-phone.svg
+Icon=/usr/share/jabber4linux/jabber4linux/assets/tux-phone.svg
 Categories=Application;Utility
 Comment=Unofficial Linux implementation of Cisco Jabber softphone
 

@@ -33,12 +33,18 @@ For debugging / reporting bugs, please start Jabber4Linux from Terminal with par
 Stars & contributions welcome!
 
 ## Installation
-For Ubuntu 22.04:
-```
-apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip
-sudo -H pip3 install -r requirements.txt
+### Debian Package
+You can download and install the `.deb` package from the [latest release](https://github.com/schorschii/Jabber4Linux/releases) on GitHub.
 
-./Jabber4Linux.py
+### Manual Installation
+For Debian & Ubuntu >= 22.04:
+```
+apt install apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip python3-venv
+python3 -m venv j4l                       # create a new venv dir
+j4l/bin/pip3 install -r requirements.txt  # install requirements in venv
+j4l/bin/pip3 install .                    # install jabber4linux in venv
+
+j4l/bin/python3 -m simple_signer          # start manually
 ```
 
 ## SIP Transport Encryption (SIPS)

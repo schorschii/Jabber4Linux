@@ -2,11 +2,13 @@
 set -e
 
 # build .deb package
+INSTALLDIR=/usr/share/jabber4linux
+BUILDDIR=jabber4linux
 
 # check root permissions
-if [ "$EUID" -ne 0 ]
-	then echo "Please run this script as root!"
-	exit
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run this script as root!"
+    #exit 1 # disabled for github workflow. don't know why this check fails here but sudo works.
 fi
 
 # cd to working dir
@@ -16,29 +18,25 @@ cd "$(dirname "$0")"
 lrelease ../../lang/*.ts
 
 # empty / create necessary directories
-if [ -d "jabber4linux/usr/share/jabber4linux" ]; then
-	rm -r jabber4linux/usr/share/jabber4linux
+if [ -d "$BUILDDIR/usr" ]; then
+    sudo rm -r $BUILDDIR/usr
 fi
-mkdir -p jabber4linux/usr/share/jabber4linux/lang
-mkdir -p jabber4linux/usr/share/jabber4linux/assets
-mkdir -p jabber4linux/usr/share/applications
-mkdir -p jabber4linux/etc/xdg/autostart
 
 # copy files in place
-cp ../../assets/jabber4linux-autostart.desktop jabber4linux/etc/xdg/autostart
-cp ../../assets/jabber4linux.desktop jabber4linux/usr/share/applications
-cp ../../*.py jabber4linux/usr/share/jabber4linux
-cp ../../lang/*.qm jabber4linux/usr/share/jabber4linux/lang
-cp ../../assets/*.svg jabber4linux/usr/share/jabber4linux/assets
-cp ../../assets/*.wav jabber4linux/usr/share/jabber4linux/assets
-cp ../../README.md jabber4linux/usr/share/jabber4linux
-cp ../../LICENSE jabber4linux/usr/share/jabber4linux
+sudo install -D -m 644 ../../assets/jabber4linux-autostart.desktop  -t $BUILDDIR/etc/xdg/autostart
+sudo install -D -m 644 ../../assets/jabber4linux.desktop            -t $BUILDDIR/usr/share/applications
+sudo install -D -m 644 ../../lang/*.qm                              -t $BUILDDIR/$INSTALLDIR/lang
+sudo install -D -m 644 ../../jabber4linux/*.py                      -t $BUILDDIR/$INSTALLDIR/jabber4linux
+sudo install -D -m 644 ../../jabber4linux/assets/*                  -t $BUILDDIR/$INSTALLDIR/jabber4linux/assets
+sudo install -D -m 644 ../../requirements.txt                       -t $BUILDDIR/$INSTALLDIR
+sudo install -D -m 644 ../../setup.py                               -t $BUILDDIR/$INSTALLDIR
+sudo install -D -m 644 ../../README.md                              -t $BUILDDIR/$INSTALLDIR
 
-# set file permissions
-chown -R root:root jabber4linux
-chmod 775 jabber4linux/usr/share/jabber4linux/Jabber4Linux.py
+# make binary available in PATH
+sudo mkdir -p $BUILDDIR/usr/bin
+sudo ln -sf   $INSTALLDIR/venv/bin/jabber4linux     $BUILDDIR/usr/bin/jabber4linux
 
 # build deb
-dpkg-deb -Zxz --build jabber4linux
+dpkg-deb -Zxz --build $BUILDDIR
 
 echo "Build finished"

@@ -13,8 +13,8 @@ import os, sys
 import urllib.parse
 from threading import Timer
 
-from Tools import ignoreStderr
-from AudioSocket import InputAudioSocket, OutputAudioSocket
+from .Tools import ignoreStderr
+from .AudioSocket import InputAudioSocket, OutputAudioSocket
 
 
 class SipHandler(threading.Thread):

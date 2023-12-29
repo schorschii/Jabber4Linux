@@ -1,6 +1,5 @@
 dnspython>=2.0
 requests
-PyQt5
 watchdog
 filelock
 cryptography>=2.5
@@ -10,3 +9,8 @@ asn1
 # needs portaudio19-dev
 PyAudio>=0.2.13
 opuslib
+
+# Debian package note: since python3-pyqt5 is a build-dependency and --use-system-packages is set,
+# PyQt5 will not be installed in the venv. This is important because only the system-wide PyQt installation
+# enables us to use the system theme and avoids unnessesary duplicate installation of the Qt libs on the system.
+PyQt5

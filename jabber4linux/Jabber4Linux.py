@@ -4,11 +4,12 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
 
-from CapfWrapper import CapfWrapper
-from UdsWrapper import UdsWrapper
-from SipHandler import SipHandler
-from AudioSocket import AudioPlayer
-from Tools import ignoreStderr, niceTime
+from .__init__ import __title__, __version__, __website__
+from .CapfWrapper import CapfWrapper
+from .UdsWrapper import UdsWrapper
+from .SipHandler import SipHandler
+from .AudioSocket import AudioPlayer
+from .Tools import ignoreStderr, niceTime
 
 from cryptography.x509 import load_pem_x509_certificate
 from cryptography.hazmat.primitives import hashes
@@ -29,9 +30,6 @@ import re
 import sys, os
 import traceback
 
-
-PRODUCT_NAME = 'Jabber4Linux'
-PRODUCT_VERSION = '0.5.1'
 
 CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
 CFG_PATH = CFG_DIR+'/settings.json'
@@ -75,7 +73,7 @@ QT_STYLESHEET = """
 
 
 def translate(text):
-    return QtWidgets.QApplication.translate(PRODUCT_NAME, text)
+    return QtWidgets.QApplication.translate(__title__, text)
 
 def showErrorDialog(title, text, additionalText='', icon=QtWidgets.QMessageBox.Critical):
     print('(GUI ERROR DIALOG)', text)
@@ -102,7 +100,7 @@ class AboutWindow(QtWidgets.QDialog):
         self.layout = QtWidgets.QVBoxLayout(self)
 
         labelAppName = QtWidgets.QLabel(self)
-        labelAppName.setText(PRODUCT_NAME + ' v' + PRODUCT_VERSION)
+        labelAppName.setText(__title__ + ' v' + __version__)
         labelAppName.setStyleSheet('font-weight:bold')
         labelAppName.setAlignment(QtCore.Qt.AlignCenter)
         self.layout.addWidget(labelAppName)
@@ -115,7 +113,7 @@ class AboutWindow(QtWidgets.QDialog):
             '<br>'
             'GNU General Public License v3.0'
             '<br>'
-            '<a href="https://github.com/schorschii/Jabber4Linux">https://github.com/schorschii/Jabber4Linux</a>'
+            '<a href="'+__website__+'">'+__website__+'</a>'
             '<br>'
             '<br>'
             'If you like Jabber4Linux please consider<br>making a donation to support further development.'
@@ -437,7 +435,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         exitAction.triggered.connect(self.exit)
         self.setContextMenu(menu)
         self.activated.connect(self.showMenuOnTrigger)
-        self.setToolTip(PRODUCT_NAME)
+        self.setToolTip(__title__)
 
     def showMenuOnTrigger(self, reason):
         if(reason == QtWidgets.QSystemTrayIcon.Trigger):
@@ -860,7 +858,7 @@ class MainWindow(QtWidgets.QMainWindow):
         helpMenu.addAction(aboutAction)
 
         # window properties
-        self.setWindowTitle(PRODUCT_NAME)
+        self.setWindowTitle(__title__)
         self.resize(440, 290)
         self.txtCall.setFocus()
         self.setWindowIcon(self.iconApplication)
@@ -1421,7 +1419,7 @@ def savePhoneBook(settings):
         showErrorDialog(translate('Error saving phone book file'), str(e))
 
 # main entry point
-if __name__ == '__main__':
+def main():
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--hidden', action='store_true', help='Start with tray icon only (for autostart)')

@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# Exit on error
+# exit on error
 set -e
 
-# Source debconf library.
-. /usr/share/debconf/confmodule
+# source debconf library
+#. /usr/share/debconf/confmodule
 
-# install modules which are not available in the Debian/Ubuntu repos
-pip3 install --upgrade PyAudio opuslib asn1
+DIR=/usr/share/jabber4linux
 
+# create system-wide venv and install python libraries via pip
+python3 -m venv --system-site-packages $DIR/venv
+$DIR/venv/bin/pip3 install --upgrade $DIR
+$DIR/venv/bin/pip3 uninstall -y pip
+
+# recognize desktop shortcut / protocol handler
 update-desktop-database

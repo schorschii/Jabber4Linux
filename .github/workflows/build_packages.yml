@@ -1,0 +1,56 @@
+name: Release with packages
+
+on:
+  workflow_dispatch: # allow manual execution
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create_release: # used to identify the output in other jobs
+    name: Create Release with Debian package
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y qttools5-dev-tools qtchooser $(cat installer/debian/jabber4linux/DEBIAN/control | grep 'Depends' | cut -d: -f2 | sed -e 's/,/ /g' | sed -r 's/\([<>=.0-9]+\)//g')
+
+      - name: Execute build
+        run: cd installer/debian/ && ./build.sh
+
+      - name: Get version name for Github release title
+        run: echo "VERSION=Version $(python3 -c 'import jabber4linux; print(jabber4linux.__version__)')" >> $GITHUB_ENV
+
+      - id: create_release
+        name: Create Github release
+        uses: actions/create-release@v1
+        env:
+          # this token is provided automatically by Actions with permissions declared above
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          draft: true # create a release draft - only the master of disaster is allowed to publish it
+          prerelease: false
+          release_name: ${{ env.VERSION }}
+          tag_name: ${{ github.ref }}
+
+      - name: Get artifact
+        run: |
+          echo "ARTIFACT_PATH=$(find installer/ -name "*.deb")" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=$(basename $(find installer/ -name "*.deb") .deb)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ARTIFACT_PATH }}
+          asset_name: ${{ env.ARTIFACT_NAME }}.deb
+          asset_content_type: application/vnd.debian.binary-package
