@@ -40,12 +40,19 @@ You can download and install the `.deb` package from the [latest release](https:
 For Debian & Ubuntu >= 22.04:
 ```
 apt install apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip python3-venv
-python3 -m venv j4l                       # create a new venv dir
-j4l/bin/pip3 install -r requirements.txt  # install requirements in venv
-j4l/bin/pip3 install .                    # install jabber4linux in venv
+python3 -m venv --system-site-packages j4l  # create a new venv dir
+j4l/bin/pip3 install .                      # install with requirements in venv
 
-j4l/bin/python3 -m simple_signer          # start manually
+# start manually
+j4l/bin/jabber4linux
+
+# install launcher shortcut
+cp assets/jabber4linux.desktop /usr/local/share/applications
+sudo update-desktop-database
 ```
+
+### Dark Mode
+Qt applications automatically adopt the system theme on Linux Mint (Cinnamon desktop) due to the preinstalled `qt5-gtk2-platformtheme`. For plain Ubuntu/Debian using the Gnome desktop, you need to install this package and set the environment variable `QT_QPA_PLATFORMTHEME=gtk2` before starting the app. Alternatively, you can use the package `qgnomeplatform-qt5` with the environment variable `QT_QPA_PLATFORMTHEME=gnome` (only on newer Ubuntu versions).
 
 ## SIP Transport Encryption (SIPS)
 Your CUCM administrator can choose whether your softphone should operate encrypted using SIPS (this option is called "Secure" in the management interface) or unencrypted using plaintext SIP ("Non-Secure").
