@@ -14,3 +14,5 @@ installer/macos/target/*
 installer/debian/*.deb
 installer/debian/jabber4linux/*
 !installer/debian/jabber4linux/DEBIAN/
+
+j4l/
