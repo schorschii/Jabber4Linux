@@ -164,7 +164,7 @@ class CapfWrapper():
         encoder.leave()
         return encoder.output()
 
-if(__name__ == '__main__'):
+def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--server', required=True, help='CAPF server address')

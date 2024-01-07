@@ -45,6 +45,9 @@ setup(
             'gui_scripts': [
                   'jabber4linux = jabber4linux.Jabber4Linux:main',
             ],
+            'console_scripts': [
+                  'capfwrapper = jabber4linux.CapfWrapper:main',
+            ],
       },
       platforms=['all'],
       #install_requires=[],
