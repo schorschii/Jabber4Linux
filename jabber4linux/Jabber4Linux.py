@@ -184,7 +184,7 @@ class LoginWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Jabber4Linux Login'))
         self.resize(350, 150)
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        #self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
 
         # center screen
         qr = self.frameGeometry()
@@ -267,8 +267,11 @@ class IncomingCallWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Incoming Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        # this flag combination leads to no buttons at all, despite MinimizeButton is True - weird
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
 
         # center screen
         qr = self.frameGeometry()
@@ -298,8 +301,11 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Outgoing Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        # this flag combination leads to no buttons at all, despite MinimizeButton is True - weird
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
 
         # center screen
         qr = self.frameGeometry()
@@ -328,14 +334,18 @@ class CallWindow(QtWidgets.QDialog):
         self.lblCallTimer = QtWidgets.QLabel(niceTime(0))
         self.layout.addWidget(self.lblCallTimer, 1, 0)
 
-        self.layout.addWidget(self.buttonBox, 2, 1)
+        self.layout.addWidget(self.buttonBox, 2, 0)
         self.setLayout(self.layout)
 
         # window properties
         self.setWindowTitle(translate('Current Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        # this flag combination leads to only a MinimizeButton in title bar
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
