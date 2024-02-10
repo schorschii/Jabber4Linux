@@ -2,10 +2,16 @@ from distutils.command.clean import clean
 from distutils import log
 from setuptools import setup
 
+# Get the long description from the README file
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(
       name='jabber4linux',
       version=__import__('jabber4linux').__version__,
       description='Unofficial Cisco Jabber Softphone Implementation for Linux',
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       install_requires=[i.strip() for i in open('requirements.txt').readlines()],
       license=__import__('jabber4linux').__license__,
       author='Georg Sieber',
