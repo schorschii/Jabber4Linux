@@ -39,12 +39,17 @@ You can download and install the `.deb` package from the [latest release](https:
 ### Manual Installation
 For Debian & Ubuntu >= 22.04:
 ```
+# install system-wide dependencies from Debian/Ubuntu repos
 apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip python3-venv
-python3 -m venv --system-site-packages j4l  # create a new venv dir
-j4l/bin/pip3 install .                      # install with requirements in venv
+
+# create a new Python venv dir
+python3 -m venv --system-site-packages venv
+
+# install it with requirements which are not available in Debian/Ubuntu repos in the venv
+venv/bin/pip3 install .
 
 # start manually
-j4l/bin/jabber4linux
+venv/bin/jabber4linux
 
 # install launcher shortcut
 cp assets/jabber4linux.desktop /usr/local/share/applications
