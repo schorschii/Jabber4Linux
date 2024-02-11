@@ -268,10 +268,11 @@ class IncomingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle(translate('Incoming Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
-        # this flag combination leads to no buttons at all, despite MinimizeButton is True - weird
+        # this flag combination leads to only a MinimizeButton in title bar
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
@@ -302,10 +303,11 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         self.setWindowTitle(translate('Outgoing Call'))
         self.resize(250, 100)
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
-        # this flag combination leads to no buttons at all, despite MinimizeButton is True - weird
+        # this flag combination leads to only a MinimizeButton in title bar
         self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
         self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
