@@ -4,6 +4,8 @@ It is annoying that companies always forget to implement their software for the 
 
 Jabber4Linux is an unoffical Linux port of the [Cisco Jabber](https://www.cisco.com/c/en/us/products/unified-communications/jabber/index.html) application for macOS and Windows, written in pure Python. Warning: extremely experimental. Please note that the scope of this project is to emulate the softphone functionality compatible with Cisco CUCM. For chat/XMPP you can use other clients like Pidgin.
 
+Please note that this implementation does not support [OAuth](https://www.cisco.com/c/en/us/td/docs/voice_ip_comm/cucm/admin/12_5_1/featureConfig/cucm_b_feature-configuration-guide-1251/cucm_b_feature-configuration-guide-1251_chapter_0110100.html) since I don't have access to a CUCM server with OAuth enabled. OAuth is a more comfortable alternative to the client certificate negotiation via CAPF. If you can provide a test account for this to implement, please contact me.
+
 What it can:
 - server auto discovery via DNS SRV record `_cisco-uds._tcp`
 - getting user's device information via Cisco UDS REST API
