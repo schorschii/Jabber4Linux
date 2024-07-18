@@ -5,16 +5,16 @@ from PyQt5 import QtGui
 from PyQt5 import QtCore
 
 from .__init__ import __title__, __version__, __website__
+from .__init__ import CFG_DIR, CFG_PATH, HISTORY_PATH, PHONEBOOK_PATH, CLIENT_CERTS_DIR, SERVER_CERTS_DIR
 from .CapfWrapper import CapfWrapper
 from .UdsWrapper import UdsWrapper
 from .SipHandler import SipHandler
 from .AudioSocket import AudioPlayer
-from .Tools import ignoreStderr, niceTime
+from .Tools import ignoreStderr, niceTime, getFiles
 
 from cryptography.x509 import load_pem_x509_certificate
 from cryptography.hazmat.primitives import hashes
 from functools import partial
-from pathlib import Path
 from threading import Thread, Timer
 from locale import getdefaultlocale
 import urllib.parse
@@ -30,13 +30,6 @@ import re
 import sys, os
 import traceback
 
-
-CFG_DIR  = str(Path.home())+'/.config/jabber4linux'
-CFG_PATH = CFG_DIR+'/settings.json'
-HISTORY_PATH = CFG_DIR+'/history.json'
-PHONEBOOK_PATH = CFG_DIR+'/phonebook.json'
-CLIENT_CERTS_DIR = CFG_DIR+'/client-certs'
-SERVER_CERTS_DIR = CFG_DIR+'/server-certs'
 
 QT_STYLESHEET = """
     QPushButton#destructive, QPushButton#constructive {
@@ -211,7 +204,11 @@ class LoginWindow(QtWidgets.QDialog):
         try:
             # query necessary details from API
             # throws auth & connection errors, preventing to go to the main window on error
-            uds = UdsWrapper(self.txtUsername.text(), self.txtPassword.text(), self.txtServerName.text(), self.txtServerPort.text(), debug=self.debug)
+            uds = UdsWrapper(
+                self.txtUsername.text(), self.txtPassword.text(),
+                self.txtServerName.text(), self.txtServerPort.text(),
+                trustedCerts=getFiles(SERVER_CERTS_DIR), debug=self.debug
+            )
             userDetails = uds.getUserDetails()
             devices = []
             for device in uds.getDevices():
@@ -229,7 +226,7 @@ class LoginWindow(QtWidgets.QDialog):
             self.accept()
 
         except Exception as e:
-            print(traceback.format_exc())
+            traceback.print_exc()
             showErrorDialog(translate('Login Error'), str(e))
 
             self.txtUsername.setEnabled(True)
@@ -582,7 +579,7 @@ class PhoneBookSearchModel(QtGui.QStandardItemModel):
 
     def __init__(self, parent=None):
         super(PhoneBookSearchModel, self).__init__(parent)
-        self.uds = UdsWrapper()
+        self.uds = UdsWrapper(trustedCerts=getFiles(SERVER_CERTS_DIR), debug=parent.debug)
         self.finished.connect(self.processPhoneBookResult)
 
     @QtCore.pyqtSlot(str)
@@ -792,7 +789,7 @@ class MainWindow(QtWidgets.QMainWindow):
             phoneBookSearchCompleter.setModel(self.phoneBookSearchCompleterModel)
             self.txtCall.setCompleter(phoneBookSearchCompleter)
         except Exception:
-            traceback.format_exc()
+            traceback.print_exc()
 
         # Menubar
         mainMenu = self.menuBar()
@@ -1151,18 +1148,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 if(not tlsOptions):
                     raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
 
-                # load trusted server certs
-                tlsOptions['server-cert'] = []
-                if(os.path.isdir(SERVER_CERTS_DIR)):
-                    for fileName in os.listdir(SERVER_CERTS_DIR):
-                        if(self.debug): print(f':: trusting server cert {fileName}')
-                        tlsOptions['server-cert'].append(SERVER_CERTS_DIR+'/'+fileName)
-
             # start SIP(S) session
             self.sipHandler = SipHandler(
                 device['callManagers'][0]['address'], port, tlsOptions,
                 self.user['displayName'], device['number'], device['deviceName'], device['contact'],
-                debug=self.debug
+                trustedCerts=getFiles(SERVER_CERTS_DIR), debug=self.debug
             )
             self.sipHandler.inputDeviceName = self.inputDeviceName
             self.sipHandler.outputDeviceName = self.outputDeviceName
@@ -1386,8 +1376,8 @@ class MainWindow(QtWidgets.QMainWindow):
 def loadSettings(suppressError=False):
     try:
         os.makedirs(CFG_DIR, mode=0o700, exist_ok=True)
-        os.makedirs(CFG_DIR+'/client-certs', mode=0o700, exist_ok=True)
-        os.makedirs(CFG_DIR+'/server-certs', mode=0o700, exist_ok=True)
+        os.makedirs(CLIENT_CERTS_DIR, mode=0o700, exist_ok=True)
+        os.makedirs(SERVER_CERTS_DIR, mode=0o700, exist_ok=True)
         with open(CFG_PATH) as f:
             return json.load(f)
     except Exception as e:

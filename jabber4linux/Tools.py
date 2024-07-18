@@ -24,3 +24,10 @@ def niceTime(secs):
     hours = mins // 60
     mins = mins % 60
     return '{:02d}:{:02d}:{:02d}'.format(int(hours), int(mins), secs)
+
+def getFiles(folder):
+    files = []
+    if(os.path.isdir(folder)):
+        for fileName in os.listdir(folder):
+            files.append(folder+'/'+fileName)
+    return files

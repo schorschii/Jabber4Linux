@@ -4,9 +4,33 @@ import traceback
 import requests
 import urllib.parse
 import threading
+import ssl
 from xml.dom import minidom, expatbuilder
 from base64 import b64encode
 from dns import resolver, rdatatype
+
+
+class CustomHTTPAdapter(requests.adapters.HTTPAdapter):
+
+    def __init__(self, trustedCerts, debug=False, *args, **kwargs):
+        self.debug = debug
+        self.trustedCerts = trustedCerts
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        # this creates a default context with secure default settings,
+        # which enables server certficiate verification using the
+        # system's default CA certificates
+        #context = ssl.create_default_context()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        # load trusted server certs
+        for fileName in self.trustedCerts:
+            if(self.debug): print(f':: trusting UDS server cert {fileName}')
+            context.load_verify_locations(fileName)
+
+        # alternatively, you could create your own context manually
+        # but this does NOT enable server certificate verification
+        super().init_poolmanager(*args, **kwargs, ssl_context=context)
 
 
 # Cisco User Data Services REST API Wrapper
@@ -21,7 +45,7 @@ class UdsWrapper():
 
     debug = False
 
-    def __init__(self, username=None, password=None, serverName=None, serverPort=None, debug=False):
+    def __init__(self, username=None, password=None, serverName=None, serverPort=None, trustedCerts=None, debug=False):
         self.username = username
         self.password = password
         self.debug = debug
@@ -36,6 +60,12 @@ class UdsWrapper():
                 self.serverPort = discoveredServer['port']
         if self.serverName == None:
             raise Exception('UDS server not found')
+
+        self.http_session = requests.Session()
+        if(trustedCerts):
+            # trust custom certs if at least one is given
+            # otherwise, system default CAs are used
+            self.http_session.mount('https://', CustomHTTPAdapter(trustedCerts=trustedCerts, debug=debug))
 
     def discoverUdsServer(self):
         try:
@@ -56,7 +86,7 @@ class UdsWrapper():
 
     def getUserDetails(self):
         url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}'
-        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        with self.http_session.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
             if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
@@ -114,7 +144,7 @@ class UdsWrapper():
 
     def getDevices(self):
         url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/devices'
-        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        with self.http_session.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
             if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
@@ -131,7 +161,7 @@ class UdsWrapper():
 
     def getDevice(self, id):
         url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/device/{urllib.parse.quote(id)}'
-        with requests.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
+        with self.http_session.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
             result.raise_for_status()
             if(self.debug): print(url, '::', result.text, "\n")
             document = minidom.parseString(result.text).documentElement
@@ -151,7 +181,7 @@ class UdsWrapper():
             }
 
             for item in document.getElementsByTagName('provision')[0].getElementsByTagName('uri'):
-                provisionResult = requests.get(item.firstChild.data, headers={'Authorization':self.basic_auth(self.username,self.password)})
+                provisionResult = self.http_session.get(item.firstChild.data, headers={'Authorization':self.basic_auth(self.username,self.password)})
                 try:
                     if(self.debug): print(item.firstChild.data, '::', provisionResult.text, "\n")
                     document2 = expatbuilder.parseString(provisionResult.text, False).documentElement
@@ -193,7 +223,7 @@ class UdsWrapper():
         t.start()
     def parsePhoneBook(self, url, signal):
         users = []
-        with requests.get(url) as response:
+        with self.http_session.get(url) as response:
             response.raise_for_status()
             response.encoding = 'UTF-8'
             document = minidom.parseString(response.text).documentElement
