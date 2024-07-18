@@ -71,7 +71,7 @@ The pitfall is that such a certificate is only issued once; every further signin
 The normal workflow seems to be that the phone has to operate at least once in "Non-Secure" mode first to get the LSC (Trust On First Use, TOFU principle). Then, the softphone is manually set to "Secure" by a CUCM administrator. Only after that, the connection is TLS encrypted.
 
 <details>
-<summary>Export Certificate from Windows Cert Store</summary>
+<summary>Export Client SIPS Certificate from Windows Cert Store</summary>
 
 1. Log in into Cisco Jabber on a Windows machine.
 2. Open the user cert store (`certmgr.msc`) and navigate to "Own Certificates" -> "Certificates".
@@ -85,7 +85,7 @@ The normal workflow seems to be that the phone has to operate at least once in "
 </details>
 
 <details>
-<summary>Server Certificate Pinning</summary>
+<summary>UDS/SIPS Server Certificate Pinning</summary>
 
 In addition to that, server certificates of Cisco CUCM used for SIPS are often self-signed (unlike those used for the UDS API and web interface). You can put all server certificates which should be trusted inside `~/.config/jabber4linux/server-certs` and they will automatically be loaded.
 </details>
