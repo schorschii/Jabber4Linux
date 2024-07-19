@@ -142,6 +142,12 @@ class UdsWrapper():
                 values['speedDialsUri'] = document.getElementsByTagName('speedDials')[0].getAttribute('uri')
             return values
 
+    def getFirstElementByTagName(self, item, tag):
+        try:
+            return item.getElementsByTagName(tag)[0].firstChild.data
+        except AttributeError:
+            return ''
+
     def getDevices(self):
         url = f'https://{self.serverName}:{self.serverPort}/cucm-uds/user/{urllib.parse.quote(self.username)}/devices'
         with self.http_session.get(url, headers={'Authorization':self.basic_auth(self.username,self.password)}) as result:
@@ -155,7 +161,7 @@ class UdsWrapper():
                     'name': item.getElementsByTagName('name')[0].firstChild.data,
                     'type': item.getElementsByTagName('type')[0].firstChild.data,
                     'model': item.getElementsByTagName('model')[0].firstChild.data,
-                    'description': item.getElementsByTagName('description')[0].firstChild.data,
+                    'description': self.getFirstElementByTagName(item, 'description'),
                 })
             return values
 
@@ -170,7 +176,7 @@ class UdsWrapper():
                 'name': document.getElementsByTagName('name')[0].firstChild.data,
                 'type': document.getElementsByTagName('type')[0].firstChild.data,
                 'model': document.getElementsByTagName('model')[0].firstChild.data,
-                'description': document.getElementsByTagName('description')[0].firstChild.data,
+                'description': self.getFirstElementByTagName(document, 'description'),
                 'deviceName': document.getElementsByTagName('name')[0].firstChild.data,
                 'number': None,
                 'contact': None,
