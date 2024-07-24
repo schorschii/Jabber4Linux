@@ -627,7 +627,8 @@ class SipHandler(threading.Thread):
             f"t=0 0\r\n" +
             f"a=cisco-mari:v1\r\n" +
             f"a=cisco-mari-rate\r\n" +
-            f"m=audio {clientPort} RTP/AVP 114 0 8 111 101\r\n" + # original: RTP/AVP 114 9 104 105 0 8 18 111 101
+            # original: RTP/AVP 114 9 104 105 0 8 18 111 101
+            f"m=audio {clientPort} RTP/AVP 114 0 8 18 111 101\r\n" +
             f"c=IN IP4 {clientIp}\r\n" +
             f"a=rtpmap:114 opus/48000/2\r\n" +
             #f"a=rtpmap:9 G722/8000\r\n" +
@@ -637,8 +638,8 @@ class SipHandler(threading.Thread):
             #f"a=fmtp:105 bitrate=24000\r\n" +
             f"a=rtpmap:0 PCMU/8000\r\n" +
             f"a=rtpmap:8 PCMA/8000\r\n" +
-            #f"a=rtpmap:18 G729/8000\r\n" +
-            #f"a=fmtp:18 annexb=no\r\n" +
+            f"a=rtpmap:18 G729/8000\r\n" +
+            f"a=fmtp:18 annexb=no\r\n" +
             f"a=rtpmap:111 x-ulpfecuc/8000\r\n" +
             f"a=extmap:14/sendrecv http://protocols.cisco.com/timestamp#100us\r\n" +
             f"a=fmtp:111 max_esel=1420;m=8;max_n=32;FEC_ORDER=FEC_SRTP\r\n" +
