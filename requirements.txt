@@ -8,6 +8,8 @@ asn1
 # pyaudio 0.2.11 (currently delivered in Ubuntu package python3-pyaudio) is incomaptible with Python 3.10, so we need to install the newest version via pip
 # needs portaudio19-dev
 PyAudio>=0.2.13
+
+# needs libopus0
 opuslib
 
 # Debian package note: since python3-pyqt5 is a build-dependency and --use-system-packages is set,
