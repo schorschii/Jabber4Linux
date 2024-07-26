@@ -158,6 +158,7 @@ class LoginWindow(QtWidgets.QDialog):
         self.txtServerPort = QtWidgets.QLineEdit()
         self.txtServerPort.setPlaceholderText(translate('Port'))
         if discoveredServer != None: self.txtServerPort.setText(str(discoveredServer['port']))
+        else: self.txtServerPort.setText('8443')
         self.layout.addWidget(self.txtServerPort, 0, 2)
 
         self.lblUsername = QtWidgets.QLabel(translate('Username'))
