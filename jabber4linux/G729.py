@@ -38,15 +38,15 @@ libg729_decoder_close.argtypes = (
     DecoderPointer,
 )
 libg729_decoder_decode = libg729.bcg729Decoder
-"""libg729_decode.argtypes = (
+libg729_decoder_decode.argtypes = (
     DecoderPointer,
-    ctypes.c_ubyte, # how to correctly define an ubyte array here?
+    ctypes.POINTER(ctypes.c_ubyte),
     ctypes.c_ubyte,
     ctypes.c_ubyte,
     ctypes.c_ubyte,
     ctypes.c_ubyte,
-    ctypes.c_int16
-)"""
+    ctypes.POINTER(ctypes.c_int16),
+)
 
 
 class G729Encoder(ctypes.Structure):
@@ -64,12 +64,12 @@ libg729_encoder_close.argtypes = (
     EncoderPointer,
 )
 libg729_encoder_encode = libg729.bcg729Encoder
-"""libg729_encoder_encode.argtypes = (
+libg729_encoder_encode.argtypes = (
     EncoderPointer,
-    ctypes.c_int16,
-    ctypes.c_ubyte, # how to correctly define an ubyte array here?
-    ctypes.POINTER(ctypes.c_ubyte)
-)"""
+    ctypes.POINTER(ctypes.c_int16),
+    ctypes.POINTER(ctypes.c_ubyte),
+    ctypes.POINTER(ctypes.c_ubyte),
+)
 
 
 class Decoder():
@@ -119,7 +119,8 @@ class Encoder():
         return encoded
 
     def _encode(self, pcmdata):
-        # G729 encoder takes 80 samples (int16 -> 160 bytes) and returns always 10 byte g729
+        # G729 encoder takes 80 samples (int16 -> 160 bytes) and returns 10 byte g729 or less (if VAD enabled)
+        # do not feed the encoder with more data directly!
         frame_size = len(pcmdata)
         frame = (ctypes.c_int16 * frame_size)(*pcmdata)
         bitstream = (ctypes.c_ubyte * 10)()
