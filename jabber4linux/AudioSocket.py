@@ -13,6 +13,7 @@ import traceback
 # codec imports
 import audioop
 import opuslib
+from . import G729
 
 
 class InputAudioSocket(threading.Thread):
@@ -62,6 +63,7 @@ class InputAudioSocket(threading.Thread):
     def applyPayloadTypeMap(self, ptMap):
         # init opuslib if given in payload type map
         self.opusPayloadType = -1
+        self.g729PayloadType = -1
         for payloadTypeNumber, payloadTypeDescription in ptMap.items():
             splitter = payloadTypeDescription.lower().split('/')
             if(len(splitter) < 2): continue
@@ -69,6 +71,10 @@ class InputAudioSocket(threading.Thread):
                 self.opusPayloadType = payloadTypeNumber
                 self.opusSampleRate = int(splitter[1])
                 self.opusDecoder = opuslib.Decoder(int(splitter[1]), 1)
+            elif(splitter[0] == 'g729' and int(splitter[1]) >= 8000):
+                self.g729PayloadType = payloadTypeNumber
+                self.g729SampleRate = int(splitter[1])
+                self.g729Decoder = G729.Decoder()
 
     def run(self, *args, **kwargs):
         print(f':: opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
@@ -104,6 +110,9 @@ class InputAudioSocket(threading.Thread):
                 elif(payloadType == self.opusPayloadType):
                     payloadSampleRate = self.opusSampleRate
                     audioData = self.opusDecoder.decode(rtpBody, 960)
+                elif(payloadType == self.g729PayloadType):
+                    payloadSampleRate = self.g729SampleRate
+                    audioData = self.g729Decoder.decode(rtpBody)
                 else:
                     print(f'Unsupported codec / payload type {payloadType}')
 
@@ -151,11 +160,12 @@ class OutputAudioSocket(threading.Thread):
 
         # use 8khz as default, so we do not need to convert PCMU and PCMA
         self.soundcardSampleRate = 8000
-        if(self.payloadType != 0 and self.payloadType != 8):
+        if(self.payloadType != 0 and self.payloadType != 8 and self.payloadType != 18):
             self.soundcardSampleRate = 48000
 
         # init opuslib if given in payload type map
         self.opusPayloadType = -1
+        self.g729PayloadType = -1
         for payloadTypeNumber, payloadTypeDescription in ptMap.items():
             splitter = payloadTypeDescription.lower().split('/')
             if(len(splitter) < 2): continue
@@ -163,8 +173,14 @@ class OutputAudioSocket(threading.Thread):
                 self.opusPayloadType = payloadTypeNumber
                 self.opusSampleRate = int(splitter[1])
                 self.opusEncoder = opuslib.Encoder(int(splitter[1]), 1, 'voip')
+            elif(splitter[0] == 'g729' and int(splitter[1]) >= 8000):
+                self.g729PayloadType = payloadTypeNumber
+                self.g729SampleRate = int(splitter[1])
+                self.g729Encoder = G729.Encoder(0)
         if(self.payloadType == self.opusPayloadType):
             self.CHUNK = 960
+        elif(self.payloadType == self.g729PayloadType):
+            self.CHUNK = 160
 
         # prepare UDP socket for outgoing audio data
         self.dstAddress = dstAddress
@@ -240,6 +256,8 @@ class OutputAudioSocket(threading.Thread):
                 payloadSampleRate = 8000 # PCMA and PCMU always uses 8khz
                 if(self.payloadType == self.opusPayloadType):
                     payloadSampleRate = self.opusSampleRate
+                elif(self.payloadType == self.g729PayloadType):
+                    payloadSampleRate = self.g729SampleRate
                 if(self.soundcardSampleRate != payloadSampleRate):
                     audioData, state = audioop.ratecv(audioData, 2, 1, self.soundcardSampleRate, payloadSampleRate, self.sampleRateConverterState)
                     self.sampleRateConverterState = state
@@ -249,6 +267,8 @@ class OutputAudioSocket(threading.Thread):
                     rtpBody = audioop.lin2alaw(audioData, 2)
                 elif(self.payloadType == self.opusPayloadType):
                     rtpBody = self.opusEncoder.encode(audioData, self.CHUNK)
+                elif(self.payloadType == self.g729PayloadType):
+                    rtpBody = self.g729Encoder.encode(audioData)
                 else: # use PCMU as fallback
                     rtpBody = audioop.lin2ulaw(audioData, 2)
 

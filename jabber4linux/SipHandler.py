@@ -504,8 +504,13 @@ class SipHandler(threading.Thread):
                     payloadTypeNumber = int(splitter2[0])
                     payloadTypeDescription = splitter2[1]
                     payloadTypeMap[payloadTypeNumber] = payloadTypeDescription
-                    if(payloadTypeDescription.upper().startswith('PCMA')): payloadType = payloadTypeNumber # switch to PCMA if requested (always 8)
-                    if(payloadTypeDescription.lower().startswith('opus')): payloadType = payloadTypeNumber # switch to OPUS if requested
+                    # switch to PCMA if requested (always 8)
+                    # switch to G729 if requested
+                    # switch to OPUS if requested
+                    if(payloadTypeDescription.upper().startswith('PCMA')
+                    or payloadTypeDescription.lower().startswith('g729')
+                    or payloadTypeDescription.lower().startswith('opus')):
+                        payloadType = payloadTypeNumber
         return targetAddress, targetPort, payloadType, payloadTypeMap
 
     EMPTY_SESSION_ID = '00000000000000000000000000000000'
@@ -646,7 +651,7 @@ class SipHandler(threading.Thread):
             f"a=rtpmap:101 telephone-event/8000\r\n" +
             f"a=fmtp:101 0-16\r\n" +
             f"a=sendrecv\r\n")
-        payloadTypeMap = {114: 'opus/48000/2', 0: 'PCMU/8000', 8: 'PCMA/8000'}
+        payloadTypeMap = {114: 'opus/48000/2', 0: 'PCMU/8000', 8: 'PCMA/8000', 18:'G729/8000'}
         return sdp, payloadTypeMap
     def compileTryingHead(self, via, fro, to, callId, sessionId, remoteSessionId, contact):
         return (f"SIP/2.0 100 Trying\r\n" +

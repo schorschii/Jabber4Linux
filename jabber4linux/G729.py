@@ -19,12 +19,17 @@ if lib_location is None:
 libg729 = ctypes.CDLL(lib_location)
 
 
-class Decoder(ctypes.Structure):
+def chunks(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+class G729Decoder(ctypes.Structure):
     """G729 decoder state.
     This contains the complete state of an G729 decoder.
     """
     pass
-DecoderPointer = ctypes.POINTER(Decoder)
+DecoderPointer = ctypes.POINTER(G729Decoder)
 
 libg729_decoder_create = libg729.initBcg729DecoderChannel
 libg729_decoder_create.restype = DecoderPointer
@@ -44,12 +49,12 @@ libg729_decoder_decode = libg729.bcg729Decoder
 )"""
 
 
-class Encoder(ctypes.Structure):
+class G729Encoder(ctypes.Structure):
     """G729 encoder state.
     This contains the complete state of an G729 encoder.
     """
     pass
-EncoderPointer = ctypes.POINTER(Encoder)
+EncoderPointer = ctypes.POINTER(G729Encoder)
 
 libg729_encoder_create = libg729.initBcg729EncoderChannel
 libg729_encoder_create.argtypes = (ctypes.c_ubyte,)
@@ -67,14 +72,20 @@ libg729_encoder_encode = libg729.bcg729Encoder
 )"""
 
 
-class G729Decoder():
-    def __init__(self, vad_enabled=0):
+class Decoder():
+    def __init__(self):
         self.decoder = libg729_decoder_create()
         self.erasure_flag = ctypes.c_ubyte()
         self.sid_flag = ctypes.c_ubyte()
         self.rfc3389_flag = ctypes.c_ubyte()
 
     def decode(self, g729data):
+        decoded = b''
+        for chunk in chunks(g729data, 10):
+            decoded += self._decode(chunk)
+        return decoded
+
+    def _decode(self, g729data):
         frame_size = len(g729data)
         bitstream = (ctypes.c_ubyte * frame_size)(*g729data)
 
@@ -87,23 +98,34 @@ class G729Decoder():
             pcm_arr
         )
 
-        return pcm_arr
+        return bytes(pcm_arr)
 
 
-class G729Encoder():
+class Encoder():
+    # huge thanks to @jzmp for fixing the encoder function call!
+
     def __init__(self, vad_enabled=0):
         self.encoder = libg729_encoder_create(vad_enabled)
+        self.bitStreamLength = ctypes.c_ubyte()
+        self.bitStreamLength_pointer = ctypes.byref(self.bitStreamLength)
 
     def encode(self, pcmdata):
+        encoded = b''
+        for chunk in chunks(pcmdata, 160):
+            int16_arr = []
+            for int_bytes in chunks(chunk, 2):
+                int16_arr.append(int.from_bytes(int_bytes, byteorder='little'))
+            encoded += self._encode(int16_arr)
+        return encoded
+
+    def _encode(self, pcmdata):
+        # G729 encoder takes 80 samples (int16 -> 160 bytes) and returns always 10 byte g729
         frame_size = len(pcmdata)
         frame = (ctypes.c_int16 * frame_size)(*pcmdata)
-        bitstream = (ctypes.c_ubyte * 10)() # TODO: calc correct output array size
-
-        bitStreamLength = 0
-        bitStreamLengthPointer = ctypes.cast(bitStreamLength, ctypes.POINTER(ctypes.c_ubyte))
+        bitstream = (ctypes.c_ubyte * 10)()
 
         libg729_encoder_encode(
-            self.encoder, frame, bitstream, bitStreamLengthPointer
-        ) # TODO: boom, Segfault!
+            self.encoder, frame, bitstream, self.bitStreamLength_pointer
+        )
 
-        return bitstream
+        return bytes(bitstream[:int.from_bytes(self.bitStreamLength, 'big')])
