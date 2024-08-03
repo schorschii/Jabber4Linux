@@ -13,7 +13,7 @@ import traceback
 # codec imports
 import audioop
 import opuslib
-from . import G729
+import g729lib
 
 
 class InputAudioSocket(threading.Thread):
@@ -74,7 +74,7 @@ class InputAudioSocket(threading.Thread):
             elif(splitter[0] == 'g729' and int(splitter[1]) >= 8000):
                 self.g729PayloadType = payloadTypeNumber
                 self.g729SampleRate = int(splitter[1])
-                self.g729Decoder = G729.Decoder()
+                self.g729Decoder = g729lib.Decoder()
 
     def run(self, *args, **kwargs):
         print(f':: opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
@@ -176,7 +176,7 @@ class OutputAudioSocket(threading.Thread):
             elif(splitter[0] == 'g729' and int(splitter[1]) >= 8000):
                 self.g729PayloadType = payloadTypeNumber
                 self.g729SampleRate = int(splitter[1])
-                self.g729Encoder = G729.Encoder(0)
+                self.g729Encoder = g729lib.Encoder(0)
         if(self.payloadType == self.opusPayloadType):
             self.CHUNK = 960
         elif(self.payloadType == self.g729PayloadType):
