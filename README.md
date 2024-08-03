@@ -42,7 +42,7 @@ You can download and install the `.deb` package from the [latest release](https:
 For Debian & Ubuntu >= 22.04:
 ```
 # install system-wide dependencies from Debian/Ubuntu repos
-apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-pip python3-venv
+apt install python3-requests python3-dnspython python3-pyqt5 portaudio19-dev python3-watchdog python3-cryptography python3-filelock python3-pip python3-venv python3-setuptools libopus0 libbcg729-0
 
 # create a new Python venv dir
 python3 -m venv --system-site-packages venv
