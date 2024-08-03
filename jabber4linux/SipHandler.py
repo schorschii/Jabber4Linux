@@ -504,8 +504,13 @@ class SipHandler(threading.Thread):
                     payloadTypeNumber = int(splitter2[0])
                     payloadTypeDescription = splitter2[1]
                     payloadTypeMap[payloadTypeNumber] = payloadTypeDescription
-                    if(payloadTypeDescription.upper().startswith('PCMA')): payloadType = payloadTypeNumber # switch to PCMA if requested (always 8)
-                    if(payloadTypeDescription.lower().startswith('opus')): payloadType = payloadTypeNumber # switch to OPUS if requested
+                    # switch to PCMA if requested (always 8)
+                    # switch to G729 if requested
+                    # switch to OPUS if requested
+                    if(payloadTypeDescription.upper().startswith('PCMA')
+                    or payloadTypeDescription.lower().startswith('g729')
+                    or payloadTypeDescription.lower().startswith('opus')):
+                        payloadType = payloadTypeNumber
         return targetAddress, targetPort, payloadType, payloadTypeMap
 
     EMPTY_SESSION_ID = '00000000000000000000000000000000'
@@ -627,7 +632,8 @@ class SipHandler(threading.Thread):
             f"t=0 0\r\n" +
             f"a=cisco-mari:v1\r\n" +
             f"a=cisco-mari-rate\r\n" +
-            f"m=audio {clientPort} RTP/AVP 114 0 8 111 101\r\n" + # original: RTP/AVP 114 9 104 105 0 8 18 111 101
+            # original: RTP/AVP 114 9 104 105 0 8 18 111 101
+            f"m=audio {clientPort} RTP/AVP 114 0 8 18 111 101\r\n" +
             f"c=IN IP4 {clientIp}\r\n" +
             f"a=rtpmap:114 opus/48000/2\r\n" +
             #f"a=rtpmap:9 G722/8000\r\n" +
@@ -637,15 +643,15 @@ class SipHandler(threading.Thread):
             #f"a=fmtp:105 bitrate=24000\r\n" +
             f"a=rtpmap:0 PCMU/8000\r\n" +
             f"a=rtpmap:8 PCMA/8000\r\n" +
-            #f"a=rtpmap:18 G729/8000\r\n" +
-            #f"a=fmtp:18 annexb=no\r\n" +
+            f"a=rtpmap:18 G729/8000\r\n" +
+            f"a=fmtp:18 annexb=no\r\n" +
             f"a=rtpmap:111 x-ulpfecuc/8000\r\n" +
             f"a=extmap:14/sendrecv http://protocols.cisco.com/timestamp#100us\r\n" +
             f"a=fmtp:111 max_esel=1420;m=8;max_n=32;FEC_ORDER=FEC_SRTP\r\n" +
             f"a=rtpmap:101 telephone-event/8000\r\n" +
             f"a=fmtp:101 0-16\r\n" +
             f"a=sendrecv\r\n")
-        payloadTypeMap = {114: 'opus/48000/2', 0: 'PCMU/8000', 8: 'PCMA/8000'}
+        payloadTypeMap = {114: 'opus/48000/2', 0: 'PCMU/8000', 8: 'PCMA/8000', 18:'G729/8000'}
         return sdp, payloadTypeMap
     def compileTryingHead(self, via, fro, to, callId, sessionId, remoteSessionId, contact):
         return (f"SIP/2.0 100 Trying\r\n" +
