@@ -106,13 +106,26 @@ lrelease lang/de.ts
 Reverse engineering findings were documented in the [docs](docs/) folder. Wireshark was the biggest help for this project.
 
 Helpful links:
-- [SIP](https://de.wikipedia.org/wiki/Session_Initiation_Protocol)
-- [SIP Requests](https://de.wikipedia.org/wiki/SIP-Anfragen)
-- [RTP](https://de.wikipedia.org/wiki/Real-Time_Transport_Protocol)
-- [RTCP](https://de.wikipedia.org/wiki/RealTime_Control_Protocol)
-- [SDP](https://de.wikipedia.org/wiki/Session_Description_Protocol)
-- [Cisco UDS](https://developer.cisco.com/docs/user-data-services-api-reference/#!overview/overview)
-- [CUCM Security Features](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2019/pdf/BRKCOL-3501.pdf)
+- Wikipedia  
+  [SIP](https://de.wikipedia.org/wiki/Session_Initiation_Protocol)
+  ⦁
+  [SIP Requests](https://de.wikipedia.org/wiki/SIP-Anfragen)
+  ⦁
+  [RTP](https://de.wikipedia.org/wiki/Real-Time_Transport_Protocol)
+  ⦁
+  [RTCP](https://de.wikipedia.org/wiki/RealTime_Control_Protocol)
+  ⦁
+  [SDP](https://de.wikipedia.org/wiki/Session_Description_Protocol)
+
+- Cisco  
+  [Cisco UDS](https://developer.cisco.com/docs/user-data-services-api-reference/#!overview/overview)
+  ⦁
+  [CUCM Security Features](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2019/pdf/BRKCOL-3501.pdf)
+
+- usecallmanagernz Project  
+  [SEPMAC.cnf.xml documentation](https://usecallmanager.nz/sepmac-cnf-xml.html)
+  ⦁
+  [CAPF client/server implementation](https://github.com/usecallmanagernz/daemons)
 
 ## Support
 You can hire me for commercial support or adjustments for this project. Please [contact me](https://georg-sieber.de/?page=impressum) if you are interested.
