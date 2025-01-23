@@ -11,7 +11,9 @@ import ssl
 import re
 import os, sys
 import urllib.parse
+import locale
 from threading import Timer
+from contextlib import contextmanager
 
 from .Tools import ignoreStderr
 from .AudioSocket import InputAudioSocket, OutputAudioSocket
@@ -74,6 +76,8 @@ class SipHandler(threading.Thread):
         self.contactId = contactId
         self.registerCallId = None
         self.debug = debug
+
+        self.localeLock = threading.Lock()
 
         # initialize audio interface
         with ignoreStderr(): self.audio = pyaudio.PyAudio()
@@ -525,8 +529,19 @@ class SipHandler(threading.Thread):
             + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8))
             + '-' + ''.join(random.choice('0123456789abcdef') for _ in range(8)))
 
+    @contextmanager
+    def setLocale(self, name):
+        with self.localeLock:
+            saved = locale.setlocale(locale.LC_ALL)
+            try:
+                yield locale.setlocale(locale.LC_ALL, name)
+            finally:
+                locale.setlocale(locale.LC_ALL, saved)
+
     def getTimestamp(self):
-        return datetime.datetime.now().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
+        with self.setLocale('C'):
+            tstamp = datetime.datetime.now().astimezone().strftime('%a, %d %b %Y %H:%M:%S %Z') # date format: Fri, 17 Mar 2023 14:48:35 GMT"
+        return tstamp
 
     def getTransport(self, uppercase=False):
         if(self.useTls):
