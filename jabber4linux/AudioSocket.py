@@ -322,7 +322,7 @@ class AudioPlayer(threading.Thread):
         for i in range(0, info.get('deviceCount')):
             deviceInfo = audio.get_device_info_by_host_api_device_index(0, i)
             if((deviceInfo.get('maxOutputChannels')) > 0
-            and re.sub('[\(\[].*?[\)\]]', '', deviceInfo.get('name')).strip() in deviceNames):
+            and re.sub('[\\(\\[].*?[\\)\\]]', '', deviceInfo.get('name')).strip() in deviceNames):
                 self.audioStreams.append({
                     'stream': audio.open(
                         format=audio.get_format_from_width(self.wf.getsampwidth()),

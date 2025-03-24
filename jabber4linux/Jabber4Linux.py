@@ -842,14 +842,13 @@ class MainWindow(QtWidgets.QMainWindow):
         outputDevicesGroup = QtWidgets.QActionGroup(self)
         outputDevicesGroup.setExclusive(True)
         for i in range(0, info.get('deviceCount')):
+            deviceName = re.sub('[\\(\\[].*?[\\)\\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
             if(audio.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-                deviceName = re.sub('[\(\[].*?[\)\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
                 inputDeviceAction = inputDevicesGroup.addAction(QtWidgets.QAction(deviceName, self, checkable=True))
                 if(deviceName == self.inputDeviceName): inputDeviceAction.setChecked(True)
                 inputDeviceAction.triggered.connect(partial(self.clickSetInput, deviceName, inputDeviceAction))
                 inputDevicesMenu.addAction(inputDeviceAction)
             if(audio.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
-                deviceName = re.sub('[\(\[].*?[\)\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
                 outputDeviceAction = outputDevicesGroup.addAction(QtWidgets.QAction(deviceName, outputDevicesGroup, checkable=True))
                 if(deviceName == self.outputDeviceName): outputDeviceAction.setChecked(True)
                 outputDeviceAction.triggered.connect(partial(self.clickSetOutput, deviceName, outputDeviceAction))
