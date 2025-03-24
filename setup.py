@@ -1,6 +1,7 @@
 from distutils.command.clean import clean
 from distutils import log
 from setuptools import setup
+import os
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
