@@ -3,6 +3,7 @@ Version: 0.6.0
 Section: base
 Priority: optional
 Architecture: all
-Depends: python3, python3-requests, python3-dnspython, python3-pyqt5, python3-pyaudio, portaudio19-dev, python3-watchdog, python3-cryptography (>=2.5), python3-filelock, python3-pip, python3-venv, python3-setuptools, libopus0, libbcg729-0
+Depends: python3, python3-requests, python3-dnspython, libxcb-cursor0, python3-pyaudio, portaudio19-dev, python3-watchdog, python3-cryptography (>=2.5), python3-filelock, python3-pip, python3-venv, python3-setuptools, libopus0, libbcg729-0
+Recommends: python3-pyqt6
 Maintainer: Georg Sieber <it@georg-sieber.de>
 Description: Unofficial Cisco Jabber implementation for Linux (https://github.com/schorschii/jabber4linux)

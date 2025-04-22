@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
-from PyQt5 import QtWidgets
-from PyQt5 import QtGui
-from PyQt5 import QtCore
+from PyQt6 import QtWidgets, QtGui, QtCore
 
 from .__init__ import __title__, __version__, __website__
 from .__init__ import CFG_DIR, CFG_PATH, HISTORY_PATH, PHONEBOOK_PATH, CLIENT_CERTS_DIR, SERVER_CERTS_DIR
@@ -68,26 +66,26 @@ QT_STYLESHEET = """
 def translate(text):
     return QtWidgets.QApplication.translate(__title__, text)
 
-def showErrorDialog(title, text, additionalText='', icon=QtWidgets.QMessageBox.Critical):
-    print('(GUI ERROR DIALOG)', text)
+def showErrorDialog(title, text, additionalText='', icon=QtWidgets.QMessageBox.Icon.Critical):
+    print('(GUI DIALOG)', text)
     msg = QtWidgets.QMessageBox()
     msg.setIcon(icon)
     msg.setWindowTitle(title)
     msg.setText(text)
     msg.setDetailedText(additionalText)
-    msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
     msg.exec()
 
 def isDarkMode(palette):
-    return (palette.color(QtGui.QPalette.Background).red() < 100
-        and palette.color(QtGui.QPalette.Background).green() < 100
-        and palette.color(QtGui.QPalette.Background).blue() < 100)
+    return (palette.color(QtGui.QPalette.ColorRole.Window).red() < 100
+        and palette.color(QtGui.QPalette.ColorRole.Window).green() < 100
+        and palette.color(QtGui.QPalette.ColorRole.Window).blue() < 100)
 
 class AboutWindow(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
         super(AboutWindow, self).__init__(*args, **kwargs)
 
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         self.buttonBox.accepted.connect(self.accept)
 
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -95,13 +93,13 @@ class AboutWindow(QtWidgets.QDialog):
         labelAppName = QtWidgets.QLabel(self)
         labelAppName.setText(__title__ + ' v' + __version__)
         labelAppName.setStyleSheet('font-weight:bold')
-        labelAppName.setAlignment(QtCore.Qt.AlignCenter)
+        labelAppName.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(labelAppName)
 
         labelCopyright = QtWidgets.QLabel(self)
         labelCopyright.setText(
             '<br>'
-            '© 2023 <a href="https://georg-sieber.de">Georg Sieber</a>'
+            '© 2023-2025 <a href="https://georg-sieber.de">Georg Sieber</a>'
             '<br>'
             '<br>'
             'GNU General Public License v3.0'
@@ -113,7 +111,7 @@ class AboutWindow(QtWidgets.QDialog):
             '<br>'
         )
         labelCopyright.setOpenExternalLinks(True)
-        labelCopyright.setAlignment(QtCore.Qt.AlignCenter)
+        labelCopyright.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(labelCopyright)
 
         labelDescription = QtWidgets.QLabel(self)
@@ -123,7 +121,7 @@ class AboutWindow(QtWidgets.QDialog):
         labelDescription.setStyleSheet('opacity:0.8')
         labelDescription.setFixedWidth(450)
         labelDescription.setWordWrap(True)
-        labelDescription.setAlignment(QtCore.Qt.AlignCenter)
+        labelDescription.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(labelDescription)
 
         self.layout.addWidget(self.buttonBox)
@@ -138,9 +136,9 @@ class LoginWindow(QtWidgets.QDialog):
         super(LoginWindow, self).__init__(*args, **kwargs)
 
         # window layout
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok|QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Login'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Exit'))
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok|QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText(translate('Login'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setText(translate('Exit'))
         self.buttonBox.accepted.connect(self.login)
         self.buttonBox.rejected.connect(self.reject)
 
@@ -169,7 +167,7 @@ class LoginWindow(QtWidgets.QDialog):
         self.lblPassword = QtWidgets.QLabel(translate('Password'))
         self.layout.addWidget(self.lblPassword, 2, 0)
         self.txtPassword = QtWidgets.QLineEdit()
-        self.txtPassword.setEchoMode(QtWidgets.QLineEdit.Password)
+        self.txtPassword.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         self.layout.addWidget(self.txtPassword, 2, 1, 1, 2)
 
         self.layout.addWidget(self.buttonBox, 3, 1, 1, 2)
@@ -178,11 +176,11 @@ class LoginWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Jabber4Linux Login'))
         self.resize(350, 150)
-        #self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        #self.setWindowFlag(QtCore.Qt.WindowType.WindowCloseButtonHint, False)
 
         # center screen
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
@@ -198,9 +196,9 @@ class LoginWindow(QtWidgets.QDialog):
         self.txtPassword.setEnabled(False)
         self.txtServerName.setEnabled(False)
         self.txtServerPort.setEnabled(False)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(False)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Please wait...'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setEnabled(False)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText(translate('Please wait...'))
 
         try:
             # query necessary details from API
@@ -234,20 +232,20 @@ class LoginWindow(QtWidgets.QDialog):
             self.txtPassword.setEnabled(True)
             self.txtServerName.setEnabled(True)
             self.txtServerPort.setEnabled(True)
-            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
-            self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setEnabled(True)
-            self.buttonBox.button(QtWidgets.QDialogButtonBox.Ok).setText(translate('Login'))
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setEnabled(True)
+            self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText(translate('Login'))
 
 class IncomingCallWindow(QtWidgets.QDialog):
     def __init__(self, callerText, diversionText, *args, **kwargs):
         super(IncomingCallWindow, self).__init__(*args, **kwargs)
 
         # window layout
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Yes|QtWidgets.QDialogButtonBox.No)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Yes).setText(translate('Yes'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.No).setText(translate('No'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Yes).setObjectName('constructive')
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.No).setObjectName('destructive')
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Yes|QtWidgets.QDialogButtonBox.StandardButton.No)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Yes).setText(translate('Yes'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.No).setText(translate('No'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Yes).setObjectName('constructive')
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.No).setObjectName('destructive')
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
@@ -265,16 +263,16 @@ class IncomingCallWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Incoming Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
         # this flag combination leads to only a MinimizeButton in title bar
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.Dialog, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
@@ -283,9 +281,9 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         super(OutgoingCallWindow, self).__init__(*args, **kwargs)
 
         # window layout
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Cancel'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setObjectName('destructive')
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setText(translate('Cancel'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setObjectName('destructive')
         self.buttonBox.rejected.connect(self.accept) # accept means: cancel call!
 
         self.layout = QtWidgets.QGridLayout(self)
@@ -300,16 +298,16 @@ class OutgoingCallWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Outgoing Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
         # this flag combination leads to only a MinimizeButton in title bar
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.Dialog, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
@@ -320,9 +318,9 @@ class CallWindow(QtWidgets.QDialog):
         super(CallWindow, self).__init__(*args, **kwargs)
 
         # window layout
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Hang Up'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setObjectName('destructive')
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setText(translate('Hang Up'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setObjectName('destructive')
         self.buttonBox.rejected.connect(self.cancelCall)
 
         self.layout = QtWidgets.QGridLayout(self)
@@ -340,16 +338,16 @@ class CallWindow(QtWidgets.QDialog):
         # window properties
         self.setWindowTitle(translate('Current Call'))
         self.resize(250, 100)
-        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
         # this flag combination leads to only a MinimizeButton in title bar
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, True)
-        self.setWindowFlag(QtCore.Qt.WindowMaximizeButtonHint, False)
-        self.setWindowFlag(QtCore.Qt.Dialog, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowCloseButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(QtCore.Qt.WindowType.Dialog, False)
 
         # center screen
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
@@ -402,9 +400,9 @@ class PhoneBookEntryWindow(QtWidgets.QDialog):
         self.btnChooseRingtone.clicked.connect(self.clickChooseRingtone)
         layout.addWidget(self.btnChooseRingtone, 2, 2)
 
-        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Save|QtWidgets.QDialogButtonBox.Cancel)
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Save).setText(translate('Save'))
-        self.buttonBox.button(QtWidgets.QDialogButtonBox.Cancel).setText(translate('Cancel'))
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Save|QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Save).setText(translate('Save'))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setText(translate('Cancel'))
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         layout.addWidget(self.buttonBox, 3, 0, 1, 3)
@@ -448,7 +446,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self.setToolTip(__title__)
 
     def showMenuOnTrigger(self, reason):
-        if(reason == QtWidgets.QSystemTrayIcon.Trigger):
+        if(reason == QtWidgets.QSystemTrayIcon.ActivationReason.Trigger):
+            self.open()
+        elif(reason == QtWidgets.QSystemTrayIcon.ActivationReason.Context):
             self.contextMenu().popup(QtGui.QCursor.pos())
 
     def open(self):
@@ -466,8 +466,8 @@ class PhoneBookTable(QtWidgets.QTableWidget):
     def __init__(self, *args):
         self.entries = {}
         QtWidgets.QTableWidget.__init__(self, *args)
-        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        #self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        #self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
 
     def keyPressEvent(self, event):
@@ -504,8 +504,8 @@ class CallHistoryTable(QtWidgets.QTableWidget):
         self.calls = {}
         self.localPhoneBookEntries = {}
         QtWidgets.QTableWidget.__init__(self, *args)
-        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        #self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        #self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
 
     def keyPressEvent(self, event):
@@ -588,7 +588,7 @@ class PhoneBookSearchModel(QtGui.QStandardItemModel):
         if(not text): return
         self.uds.queryPhoneBook(text, self.finished)
         self.loop = QtCore.QEventLoop()
-        self.loop.exec_()
+        self.loop.exec()
 
     def processPhoneBookResult(self, entries):
         self.clear()
@@ -611,7 +611,7 @@ class PhoneBookSearchCompleter(QtWidgets.QCompleter):
     def __init__(self, mainWindow, *args, **kwargs):
         self.mainWindow = mainWindow
         super(PhoneBookSearchCompleter, self).__init__(*args, **kwargs)
-        self.setCompletionMode(QtWidgets.QCompleter.UnfilteredPopupCompletion)
+        self.setCompletionMode(QtWidgets.QCompleter.CompletionMode.UnfilteredPopupCompletion)
         #self.activated[QtCore.QModelIndex].connect(self.applySuggestion)
 
     def splitPath(self, path):
@@ -786,7 +786,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # init QCompleter for phone book search
         try:
             self.phoneBookSearchCompleterModel = PhoneBookSearchModel(self)
-            phoneBookSearchCompleter = PhoneBookSearchCompleter(self, caseSensitivity=QtCore.Qt.CaseInsensitive)
+            phoneBookSearchCompleter = PhoneBookSearchCompleter(self, caseSensitivity=QtCore.Qt.CaseSensitivity.CaseInsensitive)
             phoneBookSearchCompleter.setModel(self.phoneBookSearchCompleterModel)
             self.txtCall.setCompleter(phoneBookSearchCompleter)
         except Exception:
@@ -798,26 +798,26 @@ class MainWindow(QtWidgets.QMainWindow):
         # File Menu
         fileMenu = mainMenu.addMenu(translate('&File'))
 
-        registerAction = QtWidgets.QAction(translate('&Register'), self)
+        registerAction = QtGui.QAction(translate('&Register'), self)
         registerAction.setShortcut('F5')
         registerAction.triggered.connect(self.clickRegister)
         fileMenu.addAction(registerAction)
-        refreshConfigAction = QtWidgets.QAction(translate('Refresh &Config'), self)
+        refreshConfigAction = QtGui.QAction(translate('Refresh &Config'), self)
         refreshConfigAction.triggered.connect(self.clickRefreshConfig)
         fileMenu.addAction(refreshConfigAction)
 
         fileMenu.addSeparator()
-        callAction = QtWidgets.QAction(translate('Start &Call'), self)
+        callAction = QtGui.QAction(translate('Start &Call'), self)
         callAction.setShortcut('F2')
         callAction.triggered.connect(self.clickCall)
         fileMenu.addAction(callAction)
-        callWithSubjectAction = QtWidgets.QAction(translate('Start Call With &Subject'), self)
+        callWithSubjectAction = QtGui.QAction(translate('Start Call With &Subject'), self)
         callWithSubjectAction.setShortcut('F3')
         callWithSubjectAction.triggered.connect(self.clickCallWithSubject)
         fileMenu.addAction(callWithSubjectAction)
 
         fileMenu.addSeparator()
-        quitAction = QtWidgets.QAction(translate('&Quit'), self)
+        quitAction = QtGui.QAction(translate('&Quit'), self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.triggered.connect(self.clickQuit)
         fileMenu.addAction(quitAction)
@@ -831,29 +831,29 @@ class MainWindow(QtWidgets.QMainWindow):
         audioMenu.addSeparator()
         ringtoneDevicesMenu = audioMenu.addMenu(translate('&Ringtone Devices'))
         ringtoneDevicesMenu.setEnabled(False)
-        chooseRingtoneAction = QtWidgets.QAction(translate('&Choose Default Ringtone'), self)
+        chooseRingtoneAction = QtGui.QAction(translate('&Choose Default Ringtone'), self)
         chooseRingtoneAction.triggered.connect(self.clickChooseRingtone)
         audioMenu.addAction(chooseRingtoneAction)
 
         with ignoreStderr(): audio = pyaudio.PyAudio()
         info = audio.get_host_api_info_by_index(0)
-        inputDevicesGroup = QtWidgets.QActionGroup(self)
+        inputDevicesGroup = QtGui.QActionGroup(self)
         inputDevicesGroup.setExclusive(True)
-        outputDevicesGroup = QtWidgets.QActionGroup(self)
+        outputDevicesGroup = QtGui.QActionGroup(self)
         outputDevicesGroup.setExclusive(True)
         for i in range(0, info.get('deviceCount')):
             deviceName = re.sub('[\\(\\[].*?[\\)\\]]', '', audio.get_device_info_by_host_api_device_index(0, i).get('name')).strip()
             if(audio.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-                inputDeviceAction = inputDevicesGroup.addAction(QtWidgets.QAction(deviceName, self, checkable=True))
+                inputDeviceAction = inputDevicesGroup.addAction(QtGui.QAction(deviceName, self, checkable=True))
                 if(deviceName == self.inputDeviceName): inputDeviceAction.setChecked(True)
                 inputDeviceAction.triggered.connect(partial(self.clickSetInput, deviceName, inputDeviceAction))
                 inputDevicesMenu.addAction(inputDeviceAction)
             if(audio.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels')) > 0:
-                outputDeviceAction = outputDevicesGroup.addAction(QtWidgets.QAction(deviceName, outputDevicesGroup, checkable=True))
+                outputDeviceAction = outputDevicesGroup.addAction(QtGui.QAction(deviceName, outputDevicesGroup, checkable=True))
                 if(deviceName == self.outputDeviceName): outputDeviceAction.setChecked(True)
                 outputDeviceAction.triggered.connect(partial(self.clickSetOutput, deviceName, outputDeviceAction))
                 outputDevicesMenu.addAction(outputDeviceAction)
-                ringtoneDeviceAction = QtWidgets.QAction(deviceName, self, checkable=True)
+                ringtoneDeviceAction = QtGui.QAction(deviceName, self, checkable=True)
                 if(deviceName in self.ringtoneOutputDeviceNames): ringtoneDeviceAction.setChecked(True)
                 ringtoneDeviceAction.triggered.connect(partial(self.clickSetRingtoneOutput, deviceName, ringtoneDeviceAction))
                 ringtoneDevicesMenu.addAction(ringtoneDeviceAction)
@@ -861,7 +861,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Help Menu
         helpMenu = mainMenu.addMenu(translate('&Help'))
 
-        aboutAction = QtWidgets.QAction(translate('&About'), self)
+        aboutAction = QtGui.QAction(translate('&About'), self)
         aboutAction.setShortcut('F1')
         aboutAction.triggered.connect(self.clickAboutDialog)
         helpMenu.addAction(aboutAction)
@@ -871,12 +871,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(440, 290)
         self.txtCall.setFocus()
         self.setWindowIcon(self.iconApplication)
-
-        # center screen
-        qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
 
         # tray icon
         self.trayIcon = SystemTrayIcon(QtGui.QIcon(), self)
@@ -934,7 +928,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def clickAboutDialog(self, e):
         dlg = AboutWindow(self)
-        dlg.exec_()
+        dlg.exec()
 
     def evtIpcMessageReceivedHandler(self, message):
         if(message.strip() != ''):
@@ -945,10 +939,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.txtCall.setFocus()
 
     def eventFilter(self, source, event):
-        if(event.type() == QtCore.QEvent.KeyPress
+        if(event.type() == QtCore.QEvent.Type.KeyPress
         and (source is self.txtCall or source is self.btnCall)
-        and event.key() == QtCore.Qt.Key_Return):
-            if(event.modifiers() & QtCore.Qt.CTRL):
+        and event.key() == QtCore.Qt.Key.Key_Return):
+            if(event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
                 self.clickCallWithSubject(None)
             else:
                 self.clickCall(None)
@@ -984,30 +978,30 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.call(addressBookEntry['number'], withSubject)
                 break
     def tblCallsKeyPressed(self, keyEvent):
-        if(keyEvent.key() == QtCore.Qt.Key_Delete):
+        if(keyEvent.key() == QtCore.Qt.Key.Key_Delete):
             self.delCallsEntry(None)
-        if(keyEvent.key() == QtCore.Qt.Key_Return):
-            self.recallHistory(None, (keyEvent.modifiers() & QtCore.Qt.CTRL))
+        if(keyEvent.key() == QtCore.Qt.Key.Key_Return):
+            self.recallHistory(None, (keyEvent.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier))
     def tblPhoneBookKeyPressed(self, keyEvent):
-        if(keyEvent.key() == QtCore.Qt.Key_Delete):
+        if(keyEvent.key() == QtCore.Qt.Key.Key_Delete):
             self.delPhoneBookEntry(None)
-        if(keyEvent.key() == QtCore.Qt.Key_Return):
-            self.callPhoneBook(None, (keyEvent.modifiers() & QtCore.Qt.CTRL))
+        if(keyEvent.key() == QtCore.Qt.Key.Key_Return):
+            self.callPhoneBook(None, (keyEvent.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier))
 
     def addPhoneBookEntry(self, e):
         dialog = PhoneBookEntryWindow(self)
-        dialog.exec_()
+        dialog.exec()
     def editPhoneBookEntry(self, e):
         indices = self.tblPhoneBook.selectionModel().selectedRows()
         for index in sorted(indices):
             dialog = PhoneBookEntryWindow(self, entry=index.row())
-            dialog.exec_()
+            dialog.exec()
             break
     def addCallsEntryToPhoneBook(self, e):
         indices = self.tblCalls.selectionModel().selectedRows()
         for index in sorted(indices):
             dialog = PhoneBookEntryWindow(self, number=self.callHistory[index.row()]['number'])
-            dialog.exec_()
+            dialog.exec()
             break
     def delPhoneBookEntry(self, e):
         indices = self.tblPhoneBook.selectionModel().selectedRows()
@@ -1015,12 +1009,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # confirm
         msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         msg.setWindowTitle(translate('Remove'))
         msg.setText(translate('Are you sure you want to delete %s item(s) from the list?') % str(len(indices)))
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-        msg.button(QtWidgets.QMessageBox.Cancel).setText(translate('Cancel'))
-        if(msg.exec_() == QtWidgets.QMessageBox.Cancel): return
+        msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel)
+        msg.button(QtWidgets.QMessageBox.StandardButton.Cancel).setText(translate('Cancel'))
+        if(msg.exec() == QtWidgets.QMessageBox.StandardButton.Cancel): return
 
         for index in sorted(indices, reverse=True):
             del self.phoneBook[index.row()]
@@ -1033,12 +1027,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # confirm
         msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         msg.setWindowTitle(translate('Remove'))
         msg.setText(translate('Are you sure you want to delete %s item(s) from the list?') % str(len(indices)))
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-        msg.button(QtWidgets.QMessageBox.Cancel).setText(translate('Cancel'))
-        if(msg.exec_() == QtWidgets.QMessageBox.Cancel): return
+        msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel)
+        msg.button(QtWidgets.QMessageBox.StandardButton.Cancel).setText(translate('Cancel'))
+        if(msg.exec() == QtWidgets.QMessageBox.StandardButton.Cancel): return
 
         for index in sorted(indices, reverse=True):
             del self.callHistory[index.row()]
@@ -1078,7 +1072,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def clickRefreshConfig(self, e):
         window = LoginWindow(mainWindow=self, debug=self.debug)
-        if window.exec_() == QtWidgets.QDialog.Accepted:
+        if window.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self.buildPhoneSelector()
             self.registrationFeedbackFlag = True
             self.initSipSession(self.sltPhone.currentIndex())
@@ -1176,7 +1170,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setTrayIcon(self.STATUS_OK)
             self.failFlag = False
             if(self.registrationFeedbackFlag):
-                showErrorDialog(translate('Success'), translate('SIP registration successful'), icon=QtWidgets.QMessageBox.Information)
+                showErrorDialog(translate('Success'), translate('SIP registration successful'), icon=QtWidgets.QMessageBox.Icon.Information)
                 self.registrationFeedbackFlag = False
 
         elif(status == SipHandler.REGISTRATION_INACTIVE):
@@ -1190,11 +1184,11 @@ class MainWindow(QtWidgets.QMainWindow):
             # show option to take over other sessions
             if(status == SipHandler.REGISTRATION_ALREADY_ACTIVE):
                 msg = QtWidgets.QMessageBox()
-                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
                 msg.setWindowTitle(translate('Force Registration?'))
                 msg.setText(translate('Your phone is already connected with another softphone instance. Do you want to disconnect the other softphone?'))
-                msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
-                if(msg.exec_() == QtWidgets.QMessageBox.Ok):
+                msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel)
+                if(msg.exec() == QtWidgets.QMessageBox.StandardButton.Ok):
                     self.initSipSession(self.sltPhone.currentIndex(), True)
                 return
 
@@ -1244,7 +1238,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def incomingCallWindowFinished(self, status):
         self.closeIncomingCallWindow()
-        if(status == QtWidgets.QDialog.Accepted):
+        if(status == QtWidgets.QDialog.DialogCode.Accepted):
             self.sipHandler.acceptCall()
         else:
             self.sipHandler.rejectCall()
@@ -1265,7 +1259,7 @@ class MainWindow(QtWidgets.QMainWindow):
             dialog.setWindowTitle(translate('Subject'))
             dialog.setLabelText(translate('Please enter a call subject.')+"\n"+translate('Please note that only compatible clients will display it to the remote party.'))
             dialog.setCancelButtonText(translate('Cancel'))
-            if(dialog.exec_() == QtWidgets.QDialog.Accepted):
+            if(dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted):
                 subject = dialog.textValue()
                 self.currentOutgoingCallSubject = subject
             else:
@@ -1290,7 +1284,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif(status == SipHandler.OUTGOING_CALL_BUSY):
             self.closeOutgoingCallWindow()
             self.sipHandler.cancelCall()
-            showErrorDialog(translate('Call Failed'), translate('This line is currently busy'), '', icon=QtWidgets.QMessageBox.Warning)
+            showErrorDialog(translate('Call Failed'), translate('This line is currently busy'), '', icon=QtWidgets.QMessageBox.Icon.Warning)
 
         elif(status == SipHandler.OUTGOING_CALL_RINGING):
             self.outgoingCallWindow.lblTo.setText(self.getRemotePartyText('To_parsed_text'))
@@ -1309,7 +1303,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def outgoingCallWindowFinished(self, status):
         self.closeOutgoingCallWindow()
-        if status == QtWidgets.QDialog.Accepted:
+        if status == QtWidgets.QDialog.DialogCode.Accepted:
             self.sipHandler.cancelCall()
 
     def closeOutgoingCallWindow(self):
@@ -1320,7 +1314,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ringtonePlayer = None
 
     def callWindowFinished(self, status):
-        if status == QtWidgets.QDialog.Rejected:
+        if status == QtWidgets.QDialog.DialogCode.Rejected:
             self.sipHandler.closeCall(self.callWindow.isOutgoingCall)
 
     def evtCallClosedHandler(self):
@@ -1472,7 +1466,7 @@ def main():
         # directly start main window if login already done
         window = MainWindow(settings, presetNumber=presetNumber, debug=args.debug)
         if not args.hidden: window.show()
-        exitCode = app.exec_()
+        exitCode = app.exec()
 
         # cleanup lock file
         if(window.ipcLock.is_locked):
@@ -1490,5 +1484,5 @@ def main():
 
         # show login window on first normal startup
         window = LoginWindow(debug=args.debug)
-        if window.exec_() == QtWidgets.QDialog.Accepted:
-            sys.exit(app.exec_())
+        if window.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            sys.exit(app.exec())
