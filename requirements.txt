@@ -4,6 +4,7 @@ watchdog
 filelock
 cryptography>=2.5
 asn1
+pydbus
 
 # pyaudio 0.2.11 (delivered in Ubuntu 22.04 package python3-pyaudio) is incomaptible with Python 3.10,
 # so we need to install the newest version via pip

@@ -81,6 +81,20 @@ def isDarkMode(palette):
         and palette.color(QtGui.QPalette.ColorRole.Window).green() < 100
         and palette.color(QtGui.QPalette.ColorRole.Window).blue() < 100)
 
+def isDoNotDisturb():
+    try: # Gnome
+        from gi.repository import Gio
+        gs = Gio.Settings.new('org.gnome.desktop.notifications')
+        return not gs.get_boolean('show-banners')
+    except Exception: pass
+    try: # KDE
+        from pydbus import SessionBus
+        bus = SessionBus()
+        notify = bus.get('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
+        return notify.Get('org.freedesktop.Notifications', 'Inhibited')
+    except Exception: pass
+    return False
+
 class AboutWindow(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
         super(AboutWindow, self).__init__(*args, **kwargs)
@@ -1215,12 +1229,20 @@ class MainWindow(QtWidgets.QMainWindow):
             subjectText = (translate('Subject')+': '+self.getSubjectText()+"\n") if self.getSubjectText() else ''
             diversionText = (translate('Forwarded for')+': '+self.getDiversionText()+"\n") if self.getDiversionText() else ''
             self.incomingCallWindow = IncomingCallWindow(callerText, (subjectText+diversionText).strip())
+            doNotDisturb = isDoNotDisturb()
             try:
-                self.startRingtone(self.sipHandler.currentCall['number'])
+                if(doNotDisturb):
+                    print(':: DoNotDisturb mode detected - not playing ringtone')
+                    self.incomingCallWindow.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, False)
+                else:
+                    self.startRingtone(self.sipHandler.currentCall['number'])
             except Exception as e:
                 print('!!! ringtone error: '+str(e))
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
-            self.incomingCallWindow.show()
+            if(doNotDisturb):
+                self.incomingCallWindow.showMinimized()
+            else:
+                self.incomingCallWindow.show()
 
         elif(status == SipHandler.INCOMING_CALL_CANCELED):
             self.closeIncomingCallWindow()
