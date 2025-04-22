@@ -1233,13 +1233,13 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 if(doNotDisturb):
                     print(':: DoNotDisturb mode detected - not playing ringtone')
-                    self.incomingCallWindow.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, False)
                 else:
                     self.startRingtone(self.sipHandler.currentCall['number'])
             except Exception as e:
                 print('!!! ringtone error: '+str(e))
             self.incomingCallWindow.finished.connect(self.incomingCallWindowFinished)
             if(doNotDisturb):
+                self.incomingCallWindow.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, False)
                 self.incomingCallWindow.showMinimized()
             else:
                 self.incomingCallWindow.show()
