@@ -5,9 +5,9 @@ filelock
 cryptography>=2.5
 asn1
 
-# pyaudio 0.2.11 (currently delivered in Ubuntu package python3-pyaudio) is incomaptible with Python 3.10,
+# pyaudio 0.2.11 (delivered in Ubuntu 22.04 package python3-pyaudio) is incomaptible with Python 3.10,
 # so we need to install the newest version via pip
-PyAudio>=0.2.13 # needs Ubuntu/Debian package: portaudio19-dev
+PyAudio==0.2.13 # needs Ubuntu/Debian package: portaudio19-dev
 
 opuslib # needs Ubuntu/Debian package: libopus0
 g729lib # needs Ubuntu/Debian package: libbcg729-0
