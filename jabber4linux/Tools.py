@@ -6,6 +6,8 @@ import os, sys
 
 @contextlib.contextmanager
 def ignoreStderr():
+    yield
+    return
     devnull = os.open(os.devnull, os.O_WRONLY)
     old_stderr = os.dup(2)
     sys.stderr.flush()

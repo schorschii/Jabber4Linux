@@ -9,6 +9,7 @@ import time
 import re
 import os, sys
 import traceback
+import pickle
 
 # codec imports
 import audioop
@@ -80,6 +81,7 @@ class InputAudioSocket(threading.Thread):
         print(f':: opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
 
         try:
+            buf = []
             payloadType = -1
             counter = 0
             while True:
@@ -122,6 +124,7 @@ class InputAudioSocket(threading.Thread):
                     self.sampleRateConverterState = state
 
                 # write to soundcard
+                buf.append(audioData)
                 self.audioStream.write(audioData)
 
         except OSError:
@@ -130,6 +133,8 @@ class InputAudioSocket(threading.Thread):
         self.sock.close()
         self.audioStream.stop_stream()
         self.audioStream.close()
+        with open(os.path.dirname(os.path.realpath(__file__))+'/../experiments/record', 'wb') as f:
+            pickle.dump(buf, f)
         print(f':: closed UDP socket for incoming RTP stream')
 
     def stop(self):
