@@ -1350,6 +1350,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.devices[self.sltPhone.currentIndex()]['deviceSecurityMode'] = '3'
                 self.cancelReconnect()
                 self.initSipSession(self.sltPhone.currentIndex())
+            elif('timed out' in text.lower() or 'timeout' in text.lower()):
+                # transient read timeout on the SIP socket (e.g. missed renewal response) -
+                # don't bother the user with a modal, just reconnect in the background
+                print(':: SIP registration timeout:', text, ' :: reconnecting silently')
+                self.scheduleReconnect(self.sltPhone.currentIndex(), text)
             else:
                 showErrorDialog(translate('Registration Error'), text)
 
