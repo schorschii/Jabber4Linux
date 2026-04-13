@@ -25,6 +25,8 @@ import time
 import argparse
 import json
 import re
+import socket
+import ssl
 import sys, os
 import traceback
 
@@ -657,6 +659,14 @@ class MainWindow(QtWidgets.QMainWindow):
     failFlag = False
     registrationFeedbackFlag = False
 
+    RECONNECT_MAX_ATTEMPTS = 8
+    RECONNECT_DELAY_MS = 10_000
+    reconnectAttempt = 0
+    reconnectTimer = None
+
+    NETWORK_PROBE_DELAY_MS = 10_000
+    networkProbeTimer = None
+
     sipHandler = None
     registerRenevalInterval = None
 
@@ -670,6 +680,7 @@ class MainWindow(QtWidgets.QMainWindow):
     evtOutgoingCall = QtCore.pyqtSignal(int, str)
     evtCallClosed = QtCore.pyqtSignal()
     evtIpcMessageReceived = QtCore.pyqtSignal(str)
+    evtNetworkStateChanged = QtCore.pyqtSignal(int)
 
     def __init__(self, settings, presetNumber=None, debug=False, *args, **kwargs):
         self.debug = debug
@@ -704,6 +715,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.iconTrayNormal = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone.svg')
         self.iconTrayNotification = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-notification.svg')
         self.iconTrayFail = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-fail.svg')
+        self.iconTrayReconnect = QtGui.QIcon(os.path.dirname(os.path.realpath(__file__))+'/assets/phone-reconnect.svg')
 
         # window layout
         grid = QtWidgets.QGridLayout()
@@ -796,6 +808,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.evtOutgoingCall.connect(self.evtOutgoingCallHandler)
         self.evtCallClosed.connect(self.evtCallClosedHandler)
         self.evtIpcMessageReceived.connect(self.evtIpcMessageReceivedHandler)
+        self.evtNetworkStateChanged.connect(self.evtNetworkStateChangedHandler)
+        self.startNetworkMonitor()
 
         # init QCompleter for phone book search
         try:
@@ -1066,6 +1080,7 @@ class MainWindow(QtWidgets.QMainWindow):
     STATUS_OK = 0
     STATUS_NOTIFY = 1
     STATUS_FAIL = 2
+    STATUS_RECONNECT = 3
     def setTrayIcon(self, newStatus, force=False):
         newIcon = None
         if(newStatus == self.STATUS_OK):
@@ -1075,21 +1090,120 @@ class MainWindow(QtWidgets.QMainWindow):
                 return # 's bleibt so wie's is!!
         elif(newStatus == self.STATUS_NOTIFY):
             newIcon = self.iconTrayNotification
+        elif(newStatus == self.STATUS_RECONNECT):
+            newIcon = self.iconTrayReconnect
         else:
             newIcon = self.iconTrayFail
         self.trayIcon.setIcon(newIcon)
         self.status = newStatus
 
     def clickRegister(self, e):
+        self.cancelReconnect()
         self.registrationFeedbackFlag = True
         self.initSipSession(self.sltPhone.currentIndex())
 
     def clickRefreshConfig(self, e):
         window = LoginWindow(mainWindow=self, debug=self.debug)
         if window.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.cancelReconnect()
             self.buildPhoneSelector()
             self.registrationFeedbackFlag = True
             self.initSipSession(self.sltPhone.currentIndex())
+
+    def startNetworkMonitor(self):
+        # subscribe to NetworkManager StateChanged via D-Bus; best-effort, silent no-op if unavailable
+        try:
+            from pydbus import SystemBus
+            from gi.repository import GLib
+            from threading import Thread
+            # GLib main loop must run before subscribing so signals are actually dispatched
+            self.glibLoop = GLib.MainLoop()
+            Thread(target=self.glibLoop.run, daemon=True).start()
+            self.dbusBus = SystemBus()
+            self.nmProxy = self.dbusBus.get('org.freedesktop.NetworkManager', '/org/freedesktop/NetworkManager')
+            # keep subscription objects alive - otherwise pydbus unsubscribes on GC
+            self.nmStateChangedSub = self.nmProxy.StateChanged.connect(
+                lambda state: self.evtNetworkStateChanged.emit(int(state))
+            )
+            # also listen to PropertiesChanged on the NM interface - StateChanged is not always emitted
+            # (e.g. VPN up/down, wifi roam) but PrimaryConnection / Connectivity / State changes are
+            self.nmPropsChangedSub = self.dbusBus.subscribe(
+                sender='org.freedesktop.NetworkManager',
+                iface='org.freedesktop.DBus.Properties',
+                signal='PropertiesChanged',
+                object='/org/freedesktop/NetworkManager',
+                signal_fired=self.onNmPropertiesChanged,
+            )
+            if(self.debug): print(':: NetworkManager signal listener started')
+        except Exception as e:
+            print(f':: NetworkManager signal listener not available: {e}')
+
+    def onNmPropertiesChanged(self, sender, obj, iface, signal, params):
+        try:
+            _iface, changed, _invalidated = params
+        except Exception:
+            return
+        if not any(k in changed for k in ('State', 'PrimaryConnection', 'Connectivity', 'ActiveConnections')):
+            return
+        state = int(changed.get('State', 0))
+        self.evtNetworkStateChanged.emit(state)
+
+    def isSipServerReachable(self, timeout=3):
+        try:
+            deviceIndex = self.sltPhone.currentIndex()
+            device = self.devices[deviceIndex]
+            useTls = device.get('deviceSecurityMode') in ('2', '3')
+            port = device['callManagers'][0]['sipsPort' if useTls else 'sipPort']
+            address = device['callManagers'][0]['address']
+            with socket.create_connection((address, int(port)), timeout=timeout):
+                return True
+        except Exception as e:
+            if(self.debug): print(f':: SIP server reachability probe failed: {e}')
+            return False
+
+    def evtNetworkStateChangedHandler(self, state):
+        # NM states: 20 DISCONNECTED, 40 CONNECTING, 50 CONNECTED_LOCAL, 60 CONNECTED_SITE, 70 CONNECTED_GLOBAL
+        if(self.debug): print(f':: NetworkManager state changed: {state} - scheduling reachability probe in {self.NETWORK_PROBE_DELAY_MS}ms')
+        if(self.networkProbeTimer is not None):
+            self.networkProbeTimer.stop()
+        self.networkProbeTimer = QtCore.QTimer(self)
+        self.networkProbeTimer.setSingleShot(True)
+        self.networkProbeTimer.timeout.connect(self.networkProbe)
+        self.networkProbeTimer.start(self.NETWORK_PROBE_DELAY_MS)
+
+    def networkProbe(self):
+        self.networkProbeTimer = None
+        if(self.reconnectTimer is not None): return
+        if(self.isSipServerReachable(timeout=3)):
+            if(self.debug): print(':: post-network-change probe - SIP server reachable, no action')
+            return
+        if(self.debug): print(':: post-network-change probe - SIP server unreachable, starting reconnect')
+        self.cancelReconnect()
+        self.initSipSession(self.sltPhone.currentIndex())
+
+    def cancelReconnect(self):
+        if(self.reconnectTimer is not None):
+            self.reconnectTimer.stop()
+            self.reconnectTimer = None
+        self.reconnectAttempt = 0
+
+    def scheduleReconnect(self, deviceIndex, errorText):
+        self.reconnectAttempt += 1
+        if(self.reconnectAttempt > self.RECONNECT_MAX_ATTEMPTS):
+            # exhausted: clear state and surface as a regular failure (modal dialog appears)
+            self.reconnectAttempt = 0
+            self.reconnectTimer = None
+            self.evtRegistrationStatusChanged.emit(SipHandler.REGISTRATION_FAILED, errorText)
+            return
+        if(self.debug): print(f':: SIP server unreachable ({errorText}) - reconnect attempt {self.reconnectAttempt}/{self.RECONNECT_MAX_ATTEMPTS} in {self.RECONNECT_DELAY_MS}ms')
+        # FAIL tray + status text immediately; modal dialog suppressed via reconnectAttempt > 0 guard
+        self.lblRegistrationStatus.setToolTip(errorText)
+        self.lblRegistrationStatus.setText(translate('Reconnecting {n}/{max}...').format(n=self.reconnectAttempt, max=self.RECONNECT_MAX_ATTEMPTS))
+        self.setTrayIcon(self.STATUS_RECONNECT)
+        self.reconnectTimer = QtCore.QTimer(self)
+        self.reconnectTimer.setSingleShot(True)
+        self.reconnectTimer.timeout.connect(lambda: self.initSipSession(deviceIndex))
+        self.reconnectTimer.start(self.RECONNECT_DELAY_MS)
 
     def sltPhoneChanged(self, sender):
         self.initSipSession(self.sltPhone.currentIndex())
@@ -1157,11 +1271,17 @@ class MainWindow(QtWidgets.QMainWindow):
                     raise Exception(f'Unable to find a certificate with MD5 hash {certHash} in {CLIENT_CERTS_DIR}')
 
             # start SIP(S) session
-            self.sipHandler = SipHandler(
-                device['callManagers'][0]['address'], port, tlsOptions,
-                self.user['displayName'], device['number'], device['deviceName'], device['contact'],
-                trustedCerts=getFiles(SERVER_CERTS_DIR), debug=self.debug
-            )
+            try:
+                self.sipHandler = SipHandler(
+                    device['callManagers'][0]['address'], port, tlsOptions,
+                    self.user['displayName'], device['number'], device['deviceName'], device['contact'],
+                    trustedCerts=getFiles(SERVER_CERTS_DIR), debug=self.debug
+                )
+            except (socket.timeout, socket.gaierror, ConnectionError, TimeoutError, ssl.SSLError, OSError) as e:
+                # server not reachable - schedule a retry instead of failing immediately
+                traceback.print_exc()
+                self.scheduleReconnect(deviceIndex, str(e))
+                return
             self.sipHandler.inputDeviceName = self.inputDeviceName
             self.sipHandler.outputDeviceName = self.outputDeviceName
             self.sipHandler.evtRegistrationStatusChanged = self.evtRegistrationStatusChanged
@@ -1183,6 +1303,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.lblRegistrationStatus.setText(translate('OK!'))
             self.setTrayIcon(self.STATUS_OK)
             self.failFlag = False
+            self.cancelReconnect()
             if(self.registrationFeedbackFlag):
                 showErrorDialog(translate('Success'), translate('SIP registration successful'), icon=QtWidgets.QMessageBox.Icon.Information)
                 self.registrationFeedbackFlag = False
@@ -1195,6 +1316,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.lblRegistrationStatus.setText(translate('FAILED!'))
             self.setTrayIcon(self.STATUS_FAIL)
 
+            # if a reconnect attempt is currently scheduled, suppress the modal dialog
+            # and just reflect progress in the status label
+            if(self.reconnectAttempt > 0):
+                self.lblRegistrationStatus.setText(translate('Reconnecting {n}/{max}...').format(n=self.reconnectAttempt, max=self.RECONNECT_MAX_ATTEMPTS))
+                self.setTrayIcon(self.STATUS_RECONNECT)
+                return
+
             # show option to take over other sessions
             if(status == SipHandler.REGISTRATION_ALREADY_ACTIVE):
                 msg = QtWidgets.QMessageBox()
@@ -1203,6 +1331,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 msg.setText(translate('Your phone is already connected with another softphone instance. Do you want to disconnect the other softphone?'))
                 msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel)
                 if(msg.exec() == QtWidgets.QMessageBox.StandardButton.Ok):
+                    self.cancelReconnect()
                     self.initSipSession(self.sltPhone.currentIndex(), True)
                 return
 
@@ -1219,6 +1348,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 # todo: re-read the configuration from the server instead of switching to fixed number '3'
                 print(':: SIP registration failed:', text, ' :: automatically switching to TLS')
                 self.devices[self.sltPhone.currentIndex()]['deviceSecurityMode'] = '3'
+                self.cancelReconnect()
                 self.initSipSession(self.sltPhone.currentIndex())
             else:
                 showErrorDialog(translate('Registration Error'), text)
