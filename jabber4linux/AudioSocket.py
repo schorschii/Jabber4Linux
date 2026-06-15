@@ -122,7 +122,23 @@ class InputAudioSocket(threading.Thread):
                     self.sampleRateConverterState = state
 
                 # write to soundcard
-                self.audioStream.write(audioData)
+                if not self.audioStream.is_active():
+                    # PipeWire can silently suspend the stream or raise OSError on write;
+                    # restart the stream to recover rather than letting the loop exit
+                    try:
+                        self.audioStream.stop_stream()
+                        self.audioStream.start_stream()
+                    except OSError:
+                        pass
+                try:
+                    self.audioStream.write(audioData)
+                except OSError:
+                    try:
+                        self.audioStream.stop_stream()
+                        self.audioStream.start_stream()
+                        self.audioStream.write(audioData)
+                    except OSError:
+                        pass
 
         except OSError:
             pass
