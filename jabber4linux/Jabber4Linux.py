@@ -1114,11 +1114,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # subscribe to NetworkManager StateChanged via D-Bus; best-effort, silent no-op if unavailable
         try:
             from pydbus import SystemBus
-            from gi.repository import GLib
-            from threading import Thread
-            # GLib main loop must run before subscribing so signals are actually dispatched
-            self.glibLoop = GLib.MainLoop()
-            Thread(target=self.glibLoop.run, daemon=True).start()
             self.dbusBus = SystemBus()
             self.nmProxy = self.dbusBus.get('org.freedesktop.NetworkManager', '/org/freedesktop/NetworkManager')
             # keep subscription objects alive - otherwise pydbus unsubscribes on GC
