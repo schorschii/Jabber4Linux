@@ -1143,19 +1143,6 @@ class MainWindow(QtWidgets.QMainWindow):
         state = int(changed.get('State', 0))
         self.evtNetworkStateChanged.emit(state)
 
-    def isSipServerReachable(self, timeout=3):
-        try:
-            deviceIndex = self.sltPhone.currentIndex()
-            device = self.devices[deviceIndex]
-            useTls = device.get('deviceSecurityMode') in ('2', '3')
-            port = device['callManagers'][0]['sipsPort' if useTls else 'sipPort']
-            address = device['callManagers'][0]['address']
-            with socket.create_connection((address, int(port)), timeout=timeout):
-                return True
-        except Exception as e:
-            if(self.debug): print(f':: SIP server reachability probe failed: {e}')
-            return False
-
     def evtNetworkStateChangedHandler(self, state):
         # NM states: 20 DISCONNECTED, 40 CONNECTING, 50 CONNECTED_LOCAL, 60 CONNECTED_SITE, 70 CONNECTED_GLOBAL
         if(self.debug): print(f':: NetworkManager state changed: {state} - scheduling reachability probe in {self.NETWORK_PROBE_DELAY_MS}ms')
@@ -1169,10 +1156,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def networkProbe(self):
         self.networkProbeTimer = None
         if(self.reconnectTimer is not None): return
-        if(self.isSipServerReachable(timeout=3)):
-            if(self.debug): print(':: post-network-change probe - SIP server reachable, no action')
-            return
-        if(self.debug): print(':: post-network-change probe - SIP server unreachable, starting reconnect')
+        # start reconnect after network change only if current status is FAILED
+        if(self.status != self.STATUS_FAIL): return
+        if(self.debug): print(':: post-network-change probe, starting reconnect attempts')
         self.cancelReconnect()
         self.initSipSession(self.sltPhone.currentIndex())
 
