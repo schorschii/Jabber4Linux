@@ -235,5 +235,9 @@
         <source>Are you sure you want to delete %s item(s) from the list?</source>
         <translation>Sind Sie sicher, dass Sie %s Element(e) aus der Liste entfernen möchten?</translation>
     </message>
+    <message>
+        <source>Reconnecting {n}/{max}...</source>
+        <translation>Wiederverbinden {n}/{max}...</translation>
+    </message>
 </context>
 </TS>
