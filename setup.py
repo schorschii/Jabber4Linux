@@ -45,6 +45,7 @@ setup(
             'jabber4linux/assets/outgoing.svg',
             'jabber4linux/assets/phone.svg',
             'jabber4linux/assets/phone-fail.svg',
+            'jabber4linux/assets/phone-reconnect.svg',
             'jabber4linux/assets/phone-notification.svg',
             'jabber4linux/assets/ringelingeling.wav',
             'jabber4linux/assets/tux-phone.svg',
