@@ -77,7 +77,7 @@ class InputAudioSocket(threading.Thread):
                 self.g729Decoder = g729lib.Decoder()
 
     def run(self, *args, **kwargs):
-        print(f':: opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), f'opened UDP socket on port {self.sock.getsockname()[1]} for incoming RTP stream')
 
         try:
             payloadType = -1
@@ -128,27 +128,29 @@ class InputAudioSocket(threading.Thread):
                     try:
                         self.audioStream.stop_stream()
                         self.audioStream.start_stream()
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        print(':::', time.strftime('%Y-%m-%d %H:%M:%S'), 'DEBUG1', e)
                 try:
                     self.audioStream.write(audioData)
                 except OSError:
+                    print(':::', time.strftime('%Y-%m-%d %H:%M:%S'), 'DEBUG2', e)
                     try:
                         self.audioStream.stop_stream()
                         self.audioStream.start_stream()
                         self.audioStream.write(audioData)
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        print(':::', time.strftime('%Y-%m-%d %H:%M:%S'), 'DEBUG3', e)
 
-        except OSError:
-            pass
+        except OSError as e:
+            print(':::', time.strftime('%Y-%m-%d %H:%M:%S'), 'DEBUG4', e)
 
         self.sock.close()
         self.audioStream.stop_stream()
         self.audioStream.close()
-        print(f':: closed UDP socket for incoming RTP stream')
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), 'closed UDP socket for incoming RTP stream')
 
     def stop(self):
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), 'stop() called for UDP socket for incoming RTP stream')
         self.stopFlag = True
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
@@ -235,7 +237,7 @@ class OutputAudioSocket(threading.Thread):
         self.daemon = True
 
     def run(self, *args, **kwargs):
-        print(f':: starting outgoing UDP RTP stream to {self.dstAddress}:{self.dstPort}')
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), f'starting outgoing UDP RTP stream to {self.dstAddress}:{self.dstPort}')
 
         # STUN binding indication
         stunInitPacket = bytes([
@@ -303,9 +305,10 @@ class OutputAudioSocket(threading.Thread):
         self.sockCtrl.close()
         self.audioStream.stop_stream()
         self.audioStream.close()
-        print(f':: stopped outgoing UDP RTP stream')
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), 'stopped outgoing UDP RTP stream')
 
     def stop(self):
+        print(f'::', time.strftime('%Y-%m-%d %H:%M:%S'), 'stop() called for outgoing UDP RTP stream')
         self.stopFlag = True
         try:
             self.sock.shutdown(socket.SHUT_RDWR)

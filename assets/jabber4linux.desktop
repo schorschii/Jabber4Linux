@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Jabber4Linux
-Exec=jabber4linux %u
+Exec=bash -c "jabber4linux %u >> ~/jabber4linux.log"
 Terminal=false
 MimeType=x-scheme-handler/tel;
 Icon=/usr/share/jabber4linux/jabber4linux/assets/tux-phone.svg
