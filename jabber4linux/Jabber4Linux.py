@@ -115,7 +115,7 @@ class AboutWindow(QtWidgets.QDialog):
         labelCopyright = QtWidgets.QLabel(self)
         labelCopyright.setText(
             '<br>'
-            '© 2023-2025 <a href="https://georg-sieber.de">Georg Sieber</a>'
+            '© 2023-2026 <a href="https://georg-sieber.de">Georg Sieber</a>'
             '<br>'
             '<br>'
             'GNU General Public License v3.0'
