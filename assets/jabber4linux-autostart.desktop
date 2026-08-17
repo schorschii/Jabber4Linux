@@ -2,6 +2,7 @@
 Type=Application
 Name=Jabber4Linux
 Exec=jabber4linux --hidden
+StartupWMClass=jabber4linux
 Terminal=false
 Icon=/usr/share/jabber4linux/jabber4linux/assets/tux-phone.svg
 Categories=Application;Utility

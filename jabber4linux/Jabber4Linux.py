@@ -1588,6 +1588,8 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet(QT_STYLESHEET)
+    app.setApplicationName("jabber4linux")
+    app.setDesktopFileName("jabber4linux") # app_id for Wayland, WM_CLASS for X11
 
     # load QT translations
     translator = QtCore.QTranslator(app)
