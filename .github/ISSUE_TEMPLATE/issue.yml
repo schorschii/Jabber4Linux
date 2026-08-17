@@ -1,0 +1,15 @@
+name: Standard Issue
+description: Since I don't have access to a Cisco CUCM account anymore, new issues can only be accepted if you can provide a test account in your environment.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!WARNING]  
+        > Since I don't have access to a Cisco CUCM account anymore, new issues can only be accepted if you can provide a test account in your environment and are willing to pay for the development. Please [contact me](https://georg-sieber.de/impressum) for an offer and more details.
+  - type: textarea
+    id: text
+    attributes:
+      label: Issue text
+      description: Your bug report or feature request
+    validations:
+      required: true
