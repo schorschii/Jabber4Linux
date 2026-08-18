@@ -2,6 +2,7 @@
 Type=Application
 Name=Jabber4Linux
 Exec=jabber4linux %u
+StartupWMClass=jabber4linux
 Terminal=false
 MimeType=x-scheme-handler/tel;
 Icon=/usr/share/jabber4linux/jabber4linux/assets/tux-phone.svg
